@@ -6,69 +6,71 @@ import { useRouter } from "next/navigation";
 import { Container, Form } from "react-bootstrap";
 import { showErrorToast, showSuccessToast } from "../toast-popup/Toastify";
 import { useDispatch, useSelector } from "react-redux";
-import { login } from "@/store/reducers/registrationSlice";
-import { RootState } from "@/store";
-
-interface Registration {
-  firstName: string;
-  lastName: string;
-  email: string;
-  phoneNumber: string;
-  address: string;
-  city: string;
-  postCode: string;
-  country: string;
-  state: string;
-  password: string;
-  uid: any;
-}
+import { AppDispatch, RootState } from "@/store";
+import { loginUser, getCurrentUser, clearError } from "@/store/reducers/userSlice";
+import { mergeCart } from "@/store/reducers/orderSlice";
 
 const LoginPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [validated, setValidated] = useState(false);
   const router = useRouter();
-  const dispatch = useDispatch();
-  const isAuthenticated = useSelector(
-    (state: RootState) => state.registration.isAuthenticated
-  );
+  const dispatch = useDispatch<AppDispatch>();
+  
+  const userState = useSelector((state: RootState) => state.user);
+  const isAuthenticated = userState?.isAuthenticated ?? false;
+  const loading = userState?.loading ?? false;
+  const error = userState?.error ?? null;
+  const user = userState?.user ?? null;
 
   useEffect(() => {
-    const storedRegistrations = JSON.parse(
-      localStorage.getItem("registrationData") || "[]"
-    );
-    setRegistrations(storedRegistrations);
-  }, []);
+    // Clear any previous errors when component mounts
+    dispatch(clearError());
+  }, [dispatch]);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      router.push("/");
+    if (isAuthenticated && user) {
+      router.push("/home");
     }
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, user, router]);
 
-  const handleLogin = (e: any) => {
+  useEffect(() => {
+    if (error) {
+      showErrorToast(error);
+      dispatch(clearError());
+    }
+  }, [error, dispatch]);
+
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-
     const form = e.currentTarget;
+    
     if (form.checkValidity() === false) {
       e.stopPropagation();
-    }
-
-    const foundUser = registrations.find(
-      (user) => user.email === email && user.password === password
-    );
-
-    if (foundUser) {
-      const userData = { uid: foundUser.uid, email, password };
-      localStorage.setItem("login_user", JSON.stringify(userData));
-      dispatch(login(foundUser));
-      showSuccessToast("User Login Success");
-    } else {
-      showErrorToast("Invalid email or password");
+      setValidated(true);
+      return;
     }
 
     setValidated(true);
+
+    try {
+      // Dispatch login action
+      const result = await dispatch(loginUser({ email, password }));
+      
+      if (loginUser.fulfilled.match(result)) {
+        showSuccessToast("Login successful!");
+        // After successful login, fetch user data
+        await dispatch(getCurrentUser());
+        // Merge guest cart with user cart
+        await dispatch(mergeCart());
+        // The useEffect will handle redirect and success toast
+      } else {
+        // Error is already handled by the reducer and useEffect
+        showErrorToast(result.payload as string || "Login failed");
+      }
+    } catch (err: any) {
+      showErrorToast(err.message || "An unexpected error occurred");
+    }
   };
 
   return (
@@ -90,22 +92,21 @@ const LoginPage = () => {
                     <Form
                       noValidate
                       validated={validated}
-                      action="#"
-                      method="post"
+                      onSubmit={handleLogin}
                     >
                       <span className="gi-login-wrap">
                         <label>Email Address*</label>
                         <Form.Group>
                           <Form.Control
-                            type="text"
-                            name="name"
+                            type="email"
+                            name="email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            placeholder="Enter your email add..."
+                            placeholder="Enter your email address"
                             required
                           />
                           <Form.Control.Feedback type="invalid">
-                            Please Enter correct username.
+                            Please enter a valid email address.
                           </Form.Control.Feedback>
                         </Form.Group>
                       </span>
@@ -138,16 +139,16 @@ const LoginPage = () => {
                       </span>
                       <span className="gi-login-wrap gi-login-btn">
                         <span>
-                          <a href="/register" className="">
+                          <Link href="/register" className="">
                             Create Account?
-                          </a>
+                          </Link>
                         </span>
                         <button
-                          onClick={handleLogin}
                           className="gi-btn-1 btn"
                           type="submit"
+                          disabled={loading}
                         >
-                          Login
+                          {loading ? "Logging in..." : "Login"}
                         </button>
                       </span>
                     </Form>

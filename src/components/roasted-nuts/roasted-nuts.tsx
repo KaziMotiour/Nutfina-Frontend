@@ -1,96 +1,215 @@
 "use client";
 import { Col, Row } from "react-bootstrap";
-import { Swiper, SwiperSlide } from "swiper/react";
-import "swiper/css";
-import ItemCard from "../product-item/ItemCard";
 import { Fade } from "react-awesome-reveal";
-import useSWR from "swr";
-import fetcher from "../fetcher-api/Fetcher";
-import DealendTimer from "../dealend-timer/DealendTimer";
 import Spinner from "../button/Spinner";
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
-import ProductAll from "../product-item/ProductItem";
+import { useDispatch, useSelector } from "react-redux";
+import { AppDispatch, RootState } from "@/store";
+import { getCategory, getProducts, Product, ProductVariant } from "@/store/reducers/shopSlice";
+import ItemCard from "../product-item/ItemCard";
 
 const RoastedNuts = () => {
     const [selectedIndex, setSelectedIndex] = useState(0);
+    const dispatch = useDispatch<AppDispatch>();
+    
+    const { 
+        products, 
+        loading, 
+        error, 
+        currentCategory 
+    } = useSelector((state: RootState) => state.shop);
+
+    // Fetch category by slug "roasted-nuts"
+    useEffect(() => {
+        dispatch(getCategory("roasted-nuts"));
+    }, [dispatch]);
+
+    // Fetch products when category is loaded
+    useEffect(() => {
+        if (currentCategory && currentCategory.id) {
+            dispatch(getProducts({ 
+                category: currentCategory.id, 
+                is_active: true 
+            }));
+        }
+    }, [currentCategory, dispatch]);
 
     const handleProductClick = (index: number) => {
-      setSelectedIndex(index);
+        setSelectedIndex(index);
     };
 
+    // Transform backend product data to ItemCard format
+    const transformedProducts = useMemo(() => {
+        if (!products || products.length === 0) return [];
+
+        return products.map((product: Product) => {
+            // Get the first variant (preferably featured) or use base price
+            const firstVariant = product.variants && product.variants.length > 0 
+                ? product.variants[0] 
+                : null;
+            
+            // Get images - prefer variant images, fallback to product images
+            const images = firstVariant?.images && firstVariant.images.length > 0
+                ? firstVariant.images
+                : firstVariant?.product_images && firstVariant.product_images.length > 0
+                ? firstVariant.product_images
+                : product.images || [];
+
+            const firstImage = images.find((img: any) => img.is_active) || images[0];
+            const secondImage = images.find((img: any, idx: number) => idx === 1 && img.is_active) || images[1] || firstImage;
+
+            const price = firstVariant ? parseFloat(firstVariant.final_price) : parseFloat(product.base_price);
+            const oldPrice = firstVariant && firstVariant.on_sale 
+                ? parseFloat(firstVariant.price) 
+                : null;
+
+            const categoryName = product.category_name || 'Uncategorized';
+
+            // Get image URL - the serializer returns full URL in the 'image' field
+            const getImageUrl = (img: any) => {
+                if (!img) return "/assets/img/common/placeholder.png";
+                // The serializer returns full URL in 'image' field
+                return img.image || "/assets/img/common/placeholder.png";
+            };
+
+            const options = product?.variants?.map((variant: ProductVariant) => {
+                return {
+                    id: variant.id,
+                    title: variant.name,
+                    newPrice: variant.final_price,
+                    oldPrice: variant.price,
+                    weight: variant.weight_grams ? `${variant.weight_grams}g` : "N/A",
+                    sku: variant.sku,
+                    image: getImageUrl(variant?.images?.[0] || variant?.product_images?.[0]),
+                    imageTwo: getImageUrl(variant?.images?.[1] || variant?.product_images?.[1]),
+                };
+            });
+
+            return {
+                id: firstVariant?.id || product.id,
+                title: product.name,
+                newPrice: price,
+                oldPrice: oldPrice || price,
+                sale: firstVariant?.on_sale ? "Sale" : "",
+                image: getImageUrl(firstImage),
+                imageTwo: getImageUrl(secondImage),
+                category: categoryName,
+                status: firstVariant?.is_active ? "Available" : "Out of Stock",
+                rating: 5, // Default rating, can be added to backend later
+                weight: firstVariant?.weight_grams 
+                    ? `${(firstVariant.weight_grams / 1000).toFixed(1)}kg` 
+                    : "N/A",
+                sku: firstVariant?.sku || product.id,
+                quantity: 1,
+                date: product.created,
+                location: "Bangladesh",
+                brand: categoryName,
+                waight: firstVariant?.weight_grams 
+                    ? `${(firstVariant.weight_grams / 1000).toFixed(1)}kg` 
+                    : "N/A",
+                options: options,
+            };
+        });
+    }, [products]);
+
+    if (error) return <div>Failed to load products</div>;
+    if (loading || !products)
+        return (
+            <div>
+                <Spinner />
+            </div>
+        );
+
     return (
-    <>
-        <section
-          className="gi-product-tab gi-products padding-tb-40 wow fadeInUp"
-          data-wow-duration="2s"
-        >
-            <div className="container">
-                <Tabs
-                  selectedIndex={selectedIndex}
-                  onSelect={(selectedIndex) => setSelectedIndex(selectedIndex)}
-                >
-                    <div className="gi-tab-title">
-                        <div className="gi-main-title">
-                            <div className="section-title">
-                                <div className="section-detail">
-                                    <h2 className="gi-title">
-                                        Roasted Nuts
-                                    </h2>
-                                    <p>A healthy snack for every one</p> 
+        <>
+            <section
+                className="gi-product-tab gi-products padding-tb-40 wow fadeInUp"
+                data-wow-duration="2s"
+            >
+                <div className="container">
+                    <Tabs
+                        selectedIndex={selectedIndex}
+                        onSelect={(selectedIndex) => setSelectedIndex(selectedIndex)}
+                    >
+                        <div className="gi-tab-title">
+                            <div className="gi-main-title">
+                                <div className="section-title">
+                                    <div className="section-detail">
+                                        <h2 className="gi-title">
+                                            Roasted Nuts
+                                        </h2>
+                                        <p>A healthy snack for every one</p> 
+                                    </div>
                                 </div>
                             </div>
+                            {/* <!-- Tab Start --> */}
+                            <TabList className="gi-pro-tab">
+                                <ul className="gi-pro-tab-nav nav">
+                                    <Tab
+                                        style={{ outline: "none" }}
+                                        className="nav-item gi-header-rtl-arrival"
+                                        key={"nut-protein-powder"}
+                                    >
+                                        <a
+                                            className={`nav-link ${
+                                                selectedIndex == 0 ? "active" : ""
+                                            }`}
+                                            onClick={() => handleProductClick(0)}
+                                            data-bs-toggle="tab"
+                                            href="/products/?category=roasted-nuts"
+                                        >
+                                            All Roasted Nuts<i className="fi-rr-angle-double-small-right"></i>
+                                        </a>
+                                    </Tab>
+                                </ul>
+                            </TabList>
+                            {/* <!-- Tab End --> */}
                         </div>
-                        {/* <!-- Tab Start --> */}
-                        <TabList className="gi-pro-tab">
-                            <ul className="gi-pro-tab-nav nav">
-                                <Tab
-                                    style={{ outline: "none" }}
-                                    className="nav-item gi-header-rtl-arrival"
-                                    key={"nut-protein-powder"}
-                                >
-                                    <a
-                                        className={`nav-link ${
-                                          selectedIndex == 0 ? "active" : ""
-                                        }`}
-                                        onClick={() => handleProductClick(0)}
-                                        data-bs-toggle="tab"
-                                        href="/products/?category=roasted-nuts"
-                                    >
-                                        All Roasted Nuts<i className="fi-rr-angle-double-small-right"></i>
-                                    </a>
-                                </Tab>
-                            </ul>
-                        </TabList>
-                        {/* <!-- Tab End --> */}
-                    </div>
-                    {/* <!-- New Product --> */}
-                    <Row className="m-b-minus-24px">
-                        <Col lg={12}>
-                            <div className="tab-content">
-                                {/* <!-- 1st Product tab start --> */}
-                                <TabPanel>
-                                    <Fade
-                                        triggerOnce
-                                        duration={400}
-                                        className={`tab-pane fade ${
-                                          selectedIndex === 0 ? "show active product-block" : ""
-                                        }`}
-                                    >
-                                        <Row>
-                                          <ProductAll url="/api/products" />
-                                        </Row>
-                                    </Fade>
-                                </TabPanel>
-                            </div>
-                        </Col>
-                    </Row>
-                </Tabs>
-            </div>
-        </section>
-    </>
+                        {/* <!-- New Product --> */}
+                        <Row className="m-b-minus-24px">
+                            <Col lg={12}>
+                                <div className="tab-content">
+                                    {/* <!-- 1st Product tab start --> */}
+                                    <TabPanel>
+                                        <Fade
+                                            triggerOnce
+                                            duration={400}
+                                            className={`tab-pane fade ${
+                                                selectedIndex === 0 ? "show active product-block" : ""
+                                            }`}
+                                        >
+                                            <Row>
+                                                {transformedProducts.length === 0 ? (
+                                                    <Col lg={12}>
+                                                        <div className="text-center py-5">
+                                                            <p>No roasted nuts products found.</p>
+                                                        </div>
+                                                    </Col>
+                                                ) : (
+                                                    transformedProducts.map((item: any, index: number) => (
+                                                        <Col
+                                                            key={item.id || index}
+                                                            md={4}
+                                                            lg={3}
+                                                            xl={2}
+                                                            className="col-sm-6 gi-product-box gi-col-4"
+                                                        >
+                                                            <ItemCard data={item} showAddToCart={true} />
+                                                        </Col>
+                                                    ))
+                                                )}
+                                            </Row>
+                                        </Fade>
+                                    </TabPanel>
+                                </div>
+                            </Col>
+                        </Row>
+                    </Tabs>
+                </div>
+            </section>
+        </>
     );
-
 };
 
 export default RoastedNuts;

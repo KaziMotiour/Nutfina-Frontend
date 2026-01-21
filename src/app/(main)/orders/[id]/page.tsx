@@ -12,13 +12,13 @@ export default async function Page({
     <>
       {/* {params.id} */}
       <Breadcrumb title={"My Orders Details"} />
-      <section className="gi-blog padding-tb-40">
+      <section className="gi-blog padding-tb-10">
         <div className="container">
           <Row>
             <ProductOrderDetails id={id} />
           </Row>
         </div>
-      </section>
+      </section> 
     </>
   );
 }

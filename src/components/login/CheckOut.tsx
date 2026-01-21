@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Swiper, SwiperSlide } from "swiper/react";
 import ItemCard from "../product-item/ItemCard";
 import { useDispatch, useSelector } from "react-redux";
-import { RootState } from "../../store";
+import { RootState, AppDispatch } from "../../store";
 import StarRating from "../stars/StarRating";
 import { Fade } from "react-awesome-reveal";
 import Breadcrumb from "../breadcrumb/Breadcrumb";
@@ -13,19 +13,22 @@ import { Col, Form, Row } from "react-bootstrap";
 import Spinner from "../button/Spinner";
 import { useRouter } from "next/navigation";
 import { addOrder, clearCart, setOrders, setSwitchOn } from "@/store/reducers/cartSlice";
-import { login } from "@/store/reducers/registrationSlice";
+import { loginUser, getCurrentUser, getUserAddress, getDefaultAddress, createAddress, Address as BackendAddress } from "@/store/reducers/userSlice";
+import { mergeCart, getCart, CartItem as BackendCartItem } from "@/store/reducers/orderSlice";
 import { showErrorToast, showSuccessToast } from "../toast-popup/Toastify";
 import DiscountCoupon from "../discount-coupon/DiscountCoupon";
 
 interface Address {
   id: string;
-  firstName: string;
-  lastName: string;
-  address: string;
-  city: string;
-  postalCode: string;
+  name: string;
+  email: string;
+  phone: string;
+  full_address: string;
   country: string;
-  state: string;
+  country_name?: string;
+  district: string;
+  postal_code: string;
+  is_default: boolean;
 }
 
 interface Registration {
@@ -75,126 +78,253 @@ const CheckOut = ({
   hasPaginate = false,
   onError = () => {},
 }) => {
-  const [email, setEmail] = useState("");
-  const [validated, setValidated] = useState(false);
-  const [password, setPassword] = useState("");
-  const [registrations, setRegistrations] = useState<Registration[]>([]);
-  const [errors, setErrors] = useState<{
-    email?: string;
-    password?: string;
-    confirmPassword?: string;
-    firstName?: string;
-    lastName?: string;
-    address?: string;
-    phoneNumber?: string;
-    postalCode?: string;
-    country?: string;
-    state?: string;
-    city?: string;
-  }>({});
-  const dispatch = useDispatch();
-  const router = useRouter();
-  const cartItems = useSelector((state: RootState) => state.cart.items);
-  const orders = useSelector((state: RootState) => state.cart.orders);
-  const isLogin = useSelector(
-    (state: RootState) => state.registration.isAuthenticated
-  );
-  const [subTotal, setSubTotal] = useState(0);
-  const [vat, setVat] = useState(0);
-  const [discount, setDiscount] = useState(0);
-  const [selectedMethod, setSelectedMethod] = useState("free");
-  const [checkOutMethod, setCheckOutMethod] = useState("guest");
-  const [billingMethod, setBillingMethod] = useState("new");
-  const [billingVisible, setBillingVisible] = useState(false);
-  const [addressVisible, setAddressVisible] = useState<any[]>([]);
-  const [optionVisible, setOptionVisible] = useState(true);
-  const [loginVisible, setLoginVisible] = useState(false);
-  const [btnVisible, setBtnVisible] = useState(true);
-  const [selectedAddress, setSelectedAddress] = useState<Address | null>(null);
-  const [filteredCountryData, setFilteredCountryData] = useState<Country[]>([]);
-  const [filteredStateData, setFilteredStateData] = useState<State[]>([]);
-  const [filteredCityData, setFilteredCityData] = useState<City[]>([]);
-  const [loadingStates, setLoadingStates] = useState(false);
-  const [loadingCities, setLoadingCities] = useState(false);
-  const [isTermsChecked, setIsTermsChecked] = useState(false);
-  const checkboxRef = useRef<HTMLInputElement>(null);
-
-  const [formData, setFormData]: any = useState({
-    id: "",
-    firstName: "",
-    lastName: "",
-    address: "",
-    city: "",
-    postalCode: "",
-    country: "",
-    state: "",
-  });
-
-  const { data: country } = useSWR("/api/country", fetcher, {
-    onSuccess,
-    onError,
-  });
-
-  useEffect(() => {
-    const existingAddresses = JSON.parse(
-      localStorage.getItem("shippingAddresses") || "[]"
+    const [email, setEmail] = useState("");
+    const [validated, setValidated] = useState(false);
+    const [password, setPassword] = useState("");
+    const [registrations, setRegistrations] = useState<Registration[]>([]);
+    const [errors, setErrors] = useState<{
+      password?: string;
+      confirmPassword?: string;
+      name?: string;
+      email?: string;
+      phone?: string;
+      full_address?: string;
+      country?: string;
+      country_name?: string;
+      district?: string;
+      postal_code?: string;
+      is_default?: boolean;
+    }>({});
+    const dispatch = useDispatch<AppDispatch>();
+    const router = useRouter();
+    const cart = useSelector((state: RootState) => state.order.cart);
+    const cartLoading = useSelector((state: RootState) => state.order.loading);
+    const orders = useSelector((state: RootState) => state.cart.orders);
+    const isLogin = useSelector(
+      (state: RootState) => state.user?.isAuthenticated ?? false
     );
-    setAddressVisible(existingAddresses);
+    const loginLoading = useSelector((state: RootState) => state.user?.loading ?? false);
+    const loginError = useSelector((state: RootState) => state.user?.error ?? null);
+    const userAddresses = useSelector((state: RootState) => state.user?.address ?? []);
+    const defaultAddress = useSelector((state: RootState) => state.user?.defaultAddress ?? null);
+    const [subTotal, setSubTotal] = useState(0);
+    const [vat, setVat] = useState(0);
+    const [discount, setDiscount] = useState(0);
+    const [selectedMethod, setSelectedMethod] = useState("free");
+    const [checkOutMethod, setCheckOutMethod] = useState("guest");
+    const [billingMethod, setBillingMethod] = useState("new");
+    const [billingVisible, setBillingVisible] = useState(false);
+    const [addressVisible, setAddressVisible] = useState<any[]>([]);
+    const [optionVisible, setOptionVisible] = useState(!isLogin);
+    const [loginVisible, setLoginVisible] = useState(false);
+    const [btnVisible, setBtnVisible] = useState(true);
+    const [selectedAddress, setSelectedAddress] = useState<Address | null>(null);
+    const [filteredCountryData, setFilteredCountryData] = useState<Country[]>([]);
+    const [isTermsChecked, setIsTermsChecked] = useState(false);
+    const checkboxRef = useRef<HTMLInputElement>(null);
+    const userExplicitlyChoseNew = useRef(false);
 
-    if (existingAddresses.length > 0 && !selectedAddress) {
-      setSelectedAddress(existingAddresses[0]);
-    }
-  }, [selectedAddress]);
+    // Fetch cart on mount
+    useEffect(() => {
+        dispatch(getCart());
+    }, [dispatch]);
 
-  useEffect(() => {
-    if (selectedAddress) {
-      setBillingMethod("use");
-    } else {
-      setBillingMethod("new");
-    }
-  }, [selectedAddress]);
+    // Transform backend cart items to component format
+    const cartItems = React.useMemo(() => {
+        if (!cart || !cart.items || cart.items.length === 0) return [];
 
-  useEffect(() => {
-    if (isLogin) {
-      setBtnVisible(false);
-      setOptionVisible(false);
-      setBillingVisible(true);
-    }
-  }, [isLogin]);
+        return cart.items.map((item: BackendCartItem) => {
+            const variant = item.variant_detail || {};
+            const product = (item as any).product_detail || {};
+            
+            // Get images - prefer variant images, fallback to product images
+            const variantImages = variant.images || variant.product_images || [];
+            const productImages = product.images || [];
+            const images = variantImages.length > 0 ? variantImages : productImages;
+            const firstImage = images.find((img: any) => img.is_active) || images[0] || {};
 
-  useEffect(() => {
-    if (country) {
-      setFilteredCountryData(
-        country.map((country: any) => ({
-          id: country.id,
-          countryName: country.name,
-          iso2: country.iso2,
-        }))
-      );
-    }
-  }, [country]);
+            // Get product name - prefer product name, fallback to variant name
+            const title = product.name || variant.name || "Product";
+
+            // Get image URL
+            const imageUrl = firstImage.image || firstImage.image_url || "/assets/img/common/placeholder.png";
+
+            return {
+                id: item.id,
+                variant_id: item.variant,
+                title: title,
+                newPrice: parseFloat(item.unit_price),
+                quantity: item.quantity,
+                image: imageUrl,
+                line_total: parseFloat(item.line_total),
+            };
+        });
+    }, [cart]);
+
+    const [formData, setFormData]: any = useState({
+      name: "",
+      email: "",
+      phone: "",
+      full_address: "",
+      country: "",
+      district: "",
+      postal_code: "",
+      is_default: false,
+    });
+
+    const { data: country } = useSWR("/api/country", fetcher, {
+        onSuccess,
+        onError,
+    });
+
+    // Helper function to convert backend address to local address format
+    const convertBackendAddressToLocal = (backendAddr: BackendAddress): Address => {
+        return {
+            id: backendAddr.id.toString(),
+            name: backendAddr.name || "",
+            email: backendAddr.email || "",
+            phone: backendAddr.phone || "",
+            full_address: backendAddr.full_address || "",
+            country: backendAddr.country || "",
+            country_name: (backendAddr.country_name as string) || "",
+            district: backendAddr.district || "",
+            postal_code: backendAddr.postal_code || "",
+            is_default: backendAddr.is_default || false,
+        };
+    };
+
+    // Fetch addresses when user logs in
+    useEffect(() => {
+        if (isLogin) {
+            const fetchUserAddresses = async () => {
+                try {
+                    // Fetch all addresses and default address
+                    await Promise.all([
+                        dispatch(getUserAddress()),
+                        dispatch(getDefaultAddress()),
+                    ]);
+                } catch (error) {
+                    console.error("Error fetching addresses:", error);
+                }
+            };
+
+          fetchUserAddresses();
+        }
+    }, [isLogin, dispatch]);
+
+    // Update addressVisible when userAddresses or defaultAddress changes
+    useEffect(() => {
+        if (isLogin && userAddresses.length > 0) {
+            // Convert backend addresses to local format
+            const convertedAddresses: Address[] = userAddresses.map((address: BackendAddress) => convertBackendAddressToLocal(address));
+
+            // Always update the visible addresses
+            setAddressVisible(convertedAddresses);
+
+            // If user has addresses and hasn't explicitly chosen "new", default to "use existing address"
+            if (!userExplicitlyChoseNew.current) {
+                // Set billing method to "use" if user has addresses
+                if (billingMethod === "new" && convertedAddresses.length > 0) {
+                    setBillingMethod("use");
+                }
+
+                // Auto-select address if none is selected
+                if (!selectedAddress) {
+                    // Set default address as selected if available, otherwise use first address
+                    if (defaultAddress) {
+                        const defaultAddr = convertBackendAddressToLocal(defaultAddress);
+                        setSelectedAddress(defaultAddr);
+                    } else if (convertedAddresses.length > 0) {
+                        setSelectedAddress(convertedAddresses[0]);
+                    }
+                }
+            }
+        } else if (!isLogin) {
+            // If not logged in, use localStorage addresses
+            const existingAddresses = JSON.parse(
+                localStorage.getItem("shippingAddresses") || "[]"
+            );
+            setAddressVisible(existingAddresses);
+
+            // If user has addresses and hasn't explicitly chosen "new", default to "use existing address"
+            if (!userExplicitlyChoseNew.current && existingAddresses.length > 0) {
+                // Set billing method to "use" if user has addresses
+                if (billingMethod === "new") {
+                    setBillingMethod("use");
+                }
+
+                // Auto-select if no address is selected
+                if (!selectedAddress) {
+                    setSelectedAddress(existingAddresses[0]);
+                }
+            }
+        }
+    }, [isLogin, userAddresses, defaultAddress, billingMethod, selectedAddress]);
+
+    // Auto-set billing method to "use" when an address is selected
+    // But only if user hasn't explicitly chosen "new"
+    useEffect(() => {
+        if (selectedAddress && !userExplicitlyChoseNew.current && billingMethod !== "new") {
+            setBillingMethod("use");
+        }
+    }, [selectedAddress, billingMethod]);
+
+    useEffect(() => {
+        if (isLogin) {
+            setBtnVisible(false);
+            setOptionVisible(false);
+            setBillingVisible(true);
+        } else {
+            // For logged-out users, show billing form when guest account is selected
+            if (checkOutMethod === "guest") {
+                setBillingVisible(true);
+                setOptionVisible(true);
+            }
+        }
+    }, [isLogin, checkOutMethod]);
+
+    useEffect(() => {
+        if (country) {
+            setFilteredCountryData(
+                country.map((country: any) => ({
+                    id: country.id,
+                    countryName: country.name,
+                    iso2: country.iso2,
+                }))
+            );
+        }
+    }, [country]);
 
   const handleDeliveryChange = (event: any) => {
     setSelectedMethod(event.target.value);
   };
 
   const handleBillingChange = (event: any) => {
-    setBillingMethod(event.target.value);
+    console.log(event.target.value);
+    const newMethod = event.target.value;
+    setBillingMethod(newMethod);
+    
+    // If switching to "new", clear the selected address and mark as user choice
+    if (newMethod === "new") {
+      userExplicitlyChoseNew.current = true;
+      setSelectedAddress(null);
+      localStorage.removeItem("selectedAddress");
+    } else {
+      // User chose to use existing address
+      userExplicitlyChoseNew.current = false;
+    }
   };
 
   const handleCheckOutChange = (event: any) => {
     const method = event.target.value;
     setCheckOutMethod(method);
-    setBillingVisible(false);
-    setLoginVisible(true);
-    setBtnVisible(true);
 
     if (method === "guest") {
-      setBillingVisible(false);
+      // For guest checkout, show billing form directly
+      setBillingVisible(true);
       setLoginVisible(false);
-    } else if (method === "login") {
-      setLoginVisible(true);
       setBtnVisible(false);
+      setOptionVisible(false);
     }
   };
 
@@ -210,7 +340,7 @@ const CheckOut = ({
     }
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     const form = e.currentTarget;
@@ -220,63 +350,127 @@ const CheckOut = ({
       return;
     }
 
-    formData.id = `${Date.now()}`;
-
-    const existingAddresses = JSON.parse(
-      localStorage.getItem("shippingAddresses") || "[]"
-    );
-
-    let updatedAddresses;
-    if (existingAddresses.length === 0) {
-      updatedAddresses = [formData];
-      setSelectedAddress(formData);
-    } else {
-      updatedAddresses = [...existingAddresses, formData];
+    // Validate required fields
+    if (!formData.name || !formData.phone || !formData.full_address || !formData.country || !formData.district) {
+      setValidated(true);
+      showErrorToast("Please fill in all required fields");
+      return;
     }
 
-    localStorage.setItem("shippingAddresses", JSON.stringify(updatedAddresses));
-    setAddressVisible(updatedAddresses);
-    setSelectedAddress(formData);
+    // Prepare address data according to backend model
+    const addressData: Omit<BackendAddress, "id" | "user" | "created" | "last_modified" | "country_name"> = {
+      name: formData.name.trim(),
+      email: formData.email?.trim() || "",
+      phone: formData.phone.trim(),
+      full_address: formData.full_address.trim(),
+      country: formData.country,
+      district: formData.district.trim(),
+      postal_code: formData.postal_code?.trim() || "",
+      is_default: formData.is_default || false,
+    };
 
-    setFormData({
-      id: "",
-      firstName: "",
-      lastName: "",
-      address: "",
-      city: "",
-      postalCode: "",
-      country: "",
-      state: "",
-    });
-
-    const requiredFields = [
-      "firstName",
-      "lastName",
-      "address",
-      "country",
-      "state",
-      "city",
-      "postalCode",
-    ];
-
-    for (const field of requiredFields) {
-      if (!formData[field]) {
-        setValidated(true);
-        return;
+    // If user is logged in, save to backend
+    if (isLogin) {
+      try {
+        const result = await dispatch(createAddress(addressData as any));
+        
+        if (createAddress.fulfilled.match(result)) {
+          showSuccessToast("Address added successfully!");
+          
+          // Refresh addresses list
+          await Promise.all([
+            dispatch(getUserAddress()),
+            dispatch(getDefaultAddress())
+          ]);
+          
+          // Convert backend address to local format for selection
+          const backendAddr = result.payload as BackendAddress;
+          const localAddress = convertBackendAddressToLocal(backendAddr);
+          setSelectedAddress(localAddress);
+          
+          // Switch to "use existing address" mode if not already
+          if (billingMethod === "new") {
+            // Keep it as "new" but the address is now available in the list
+            setBillingMethod("use");
+          }
+          
+          // Reset form
+          setFormData({
+            name: "",
+            email: "",
+            phone: "",
+            full_address: "",
+            country: "",
+            district: "",
+            postal_code: "",
+            is_default: false,
+          });
+          
+          setValidated(false);
+        } else {
+          // Handle error from backend
+          const errorMessage = result.payload as string;
+          if (typeof errorMessage === 'string') {
+            showErrorToast(errorMessage);
+          } else if (errorMessage && typeof errorMessage === 'object') {
+            // Handle validation errors from backend
+            const errors = Object.values(errorMessage).flat().join(', ');
+            showErrorToast(errors || "Failed to add address");
+          } else {
+            showErrorToast("Failed to add address. Please try again.");
+          }
+        }
+      } catch (error: any) {
+        console.error("Error creating address:", error);
+        showErrorToast(error?.message || "Failed to add address. Please try again.");
       }
-    }
+    } else {
+      // For guest users, save to localStorage
+      const guestAddress = {
+        id: `${Date.now()}`,
+        ...addressData,
+      };
 
-    setValidated(false);
+      const existingAddresses = JSON.parse(
+        localStorage.getItem("shippingAddresses") || "[]"
+      );
+
+      let updatedAddresses;
+      if (existingAddresses.length === 0) {
+        updatedAddresses = [guestAddress];
+        setSelectedAddress(guestAddress);
+      } else {
+        updatedAddresses = [...existingAddresses, guestAddress];
+      }
+
+      localStorage.setItem("shippingAddresses", JSON.stringify(updatedAddresses));
+      setAddressVisible(updatedAddresses);
+      setSelectedAddress(guestAddress);
+      
+      showSuccessToast("Address added successfully!");
+      
+      // Reset form
+      setFormData({
+        name: "",
+        email: "",
+        phone: "",
+        full_address: "",
+        country: "",
+        district: "",
+        postal_code: "",
+        is_default: false,
+      });
+      
+      setValidated(false);
+    }
   };
 
-  const handleInputChange = (e: any, additionalValue: string = "") => {
+  const handleInputChange = (e: any) => {
     const { name, value } = e.target;
 
     setFormData({
       ...formData,
       [name]: value,
-      ...(name === "country" && { countryName: additionalValue }),
-      ...(name === "state" && { stateName: additionalValue }),
     });
   };
 
@@ -294,24 +488,19 @@ const CheckOut = ({
     setAddressVisible(storedAddresses);
   }, []);
 
-  // item Price
-
+  // item Price - Update from backend cart
   useEffect(() => {
-    if (cartItems.length === 0) {
+    if (cart) {
+      const subtotal = parseFloat(cart.subtotal || "0");
+      setSubTotal(subtotal);
+      // Calculate VAT (20%)
+      const vatAmount = subtotal * 0.2;
+      setVat(vatAmount);
+    } else {
       setSubTotal(0);
       setVat(0);
-      return;
     }
-
-    const subtotal = cartItems.reduce(
-      (acc, item) => acc + item.newPrice * item.quantity,
-      0
-    );
-    setSubTotal(subtotal);
-    // Calculate VAT
-    const vatAmount = subtotal * 0.2;
-    setVat(vatAmount);
-  }, [cartItems]);
+  }, [cart]);
 
   const handleDiscountApplied = (discount) => {
     setDiscount(discount);
@@ -343,15 +532,109 @@ const CheckOut = ({
 
   const randomId = generateRandomId();
 
-  const handleCheckout = () => {
+  // Check if all required information is filled
+  const isCheckoutDisabled = () => {
+    // Terms & Conditions must be checked
+    if (!isTermsChecked) {
+      return true;
+    }
+
+    // Either an address must be selected, or form must have all required fields
+    if (selectedAddress) {
+      return false; // Address is selected, can proceed
+    }
+
+    // Check if form has all required fields
+    const hasRequiredFields = 
+      formData.name?.trim() &&
+      formData.phone?.trim() &&
+      formData.full_address?.trim() &&
+      formData.country &&
+      formData.district?.trim();
+
+    return !hasRequiredFields;
+  };
+
+  const handleCheckout = async () => {
     if (!isTermsChecked) {
       showErrorToast("Please agree to the Terms & Conditions.");
       checkboxRef.current?.focus();
       return;
     }
 
-    if (!selectedAddress) {
-      showErrorToast("Please select a billing address.");
+    let addressToUse = selectedAddress;
+
+    // If no address is selected, check if form has valid data
+    if (!addressToUse) {
+      // Validate form data
+      if (!formData.name || !formData.phone || !formData.full_address || !formData.country || !formData.district) {
+        showErrorToast("Please fill in all required address fields.");
+        setValidated(true);
+        return;
+      }
+
+      // Prepare address data from form
+      const addressData: Omit<BackendAddress, "id" | "user" | "created" | "last_modified" | "country_name"> = {
+        name: formData.name.trim(),
+        email: formData.email?.trim() || "",
+        phone: formData.phone.trim(),
+        full_address: formData.full_address.trim(),
+        country: formData.country,
+        district: formData.district.trim(),
+        postal_code: formData.postal_code?.trim() || "",
+        is_default: formData.is_default || false,
+      };
+
+      // If user is logged in, save to backend first
+      if (isLogin) {
+        try {
+          const result = await dispatch(createAddress(addressData as any));
+          
+          if (createAddress.fulfilled.match(result)) {
+            const backendAddr = result.payload as BackendAddress;
+            addressToUse = convertBackendAddressToLocal(backendAddr);
+          } else {
+            const errorMessage = result.payload as string;
+            if (typeof errorMessage === 'string') {
+              showErrorToast(errorMessage);
+            } else if (errorMessage && typeof errorMessage === 'object') {
+              const errors = Object.values(errorMessage).flat().join(', ');
+              showErrorToast(errors || "Failed to save address");
+            } else {
+              showErrorToast("Failed to save address. Please try again.");
+            }
+            return;
+          }
+        } catch (error: any) {
+          console.error("Error creating address:", error);
+          showErrorToast(error?.message || "Failed to save address. Please try again.");
+          return;
+        }
+      } else {
+        // For guest users, create address object for this order
+        addressToUse = {
+          id: `${Date.now()}`,
+          name: addressData.name,
+          email: addressData.email,
+          phone: addressData.phone,
+          full_address: addressData.full_address,
+          country: addressData.country,
+          district: addressData.district,
+          postal_code: addressData.postal_code,
+          is_default: false,
+        };
+
+        // Also save to localStorage for future use
+        const existingAddresses = JSON.parse(
+          localStorage.getItem("shippingAddresses") || "[]"
+        );
+        const updatedAddresses = [...existingAddresses, addressToUse];
+        localStorage.setItem("shippingAddresses", JSON.stringify(updatedAddresses));
+      }
+    }
+
+    if (!addressToUse) {
+      showErrorToast("Please provide a billing address.");
       return;
     }
 
@@ -363,7 +646,7 @@ const CheckOut = ({
       totalPrice: total,
       status: "Pending",
       products: cartItems,
-      address: selectedAddress,
+      address: addressToUse,
     };
 
     const orderExists = orders.some(
@@ -389,86 +672,56 @@ const CheckOut = ({
   };
 
   const handleSelectAddress = (address: any) => {
+    localStorage.setItem("selectedAddress", JSON.stringify(address));
     setSelectedAddress(address);
+    // Reset the flag since user is now selecting an existing address
+    userExplicitlyChoseNew.current = false;
   };
 
-  const handleLogin = (e: any) => {
+  const handleLogin = async (e: any) => {
     e.preventDefault();
-
+    console.log(email, password);
     const form = e.currentTarget;
-    if (form.checkValidity() === false) {
+    console.log(form);
+    console.log(form.checkValidity());
+    if (form.checkValidity() === true) {
+
       e.stopPropagation();
       setValidated(true);
       return;
     }
 
-    const foundUser = registrations.find(
-      (user) => user.email === email && user.password === password
-    );
-
-    if (foundUser) {
-      const userData = { uid: foundUser.uid, email, password };
-
-      localStorage.setItem("login_user", JSON.stringify(userData));
-      dispatch(login(foundUser));
-      showSuccessToast("User Login Success");
-    } else {
-      showErrorToast("Invalid email or password");
+    // Validate email and password
+    if (!email || !password) {
+      setValidated(true);
+      showErrorToast("Please enter both email and password");
+      return;
     }
 
-    const requiredFields = ["email", "password"];
+    try {
+      console.log("loginUser");
+      // Dispatch login action
+      const result = await dispatch(loginUser({ email, password })).unwrap();
 
-    for (const field of requiredFields) {
-      if (!formData[field]) {
-        setValidated(true);
-        return;
+      console.log(result);
+      // If login successful, fetch current user data
+      if (result) {
+        await dispatch(getCurrentUser()).unwrap();
+        // Merge guest cart with user cart (backend handles this automatically via get_active_cart)
+        await dispatch(mergeCart());
+        showSuccessToast("User Login Success");
+        // Clear form
+        setEmail("");
+        setPassword("");
+        setValidated(false);
       }
+    } catch (error: any) {
+      // Error is already handled by the thunk, but show user-friendly message
+      showErrorToast(error || "Invalid email or password");
     }
-    setValidated(true);
   };
 
-  const handleCountryChange = async (e: any) => {
-    const { value, options, selectedIndex } = e.target;
-    const countryName = options[selectedIndex].text;
-    handleInputChange(e, countryName);
-
-    setLoadingStates(true);
-    const response = await fetcher(`/api/state`, {
-      country_code: value,
-    });
-    setLoadingStates(false);
-    setFilteredStateData(
-      response.map((state: any) => ({
-        id: state.id,
-        StateName: state.name,
-        state_code: state.state_code,
-      }))
-    );
-    setFilteredCityData([]);
-  };
-
-  const handleStateChange = async (e: any) => {
-    const { value, options, selectedIndex } = e.target;
-    const stateName = options[selectedIndex].text;
-
-    handleInputChange(e, stateName);
-    setLoadingCities(true);
-
-    const response = await fetcher(`/api/city`, {
-      states_code: value,
-      country_code: formData.country,
-    });
-    setLoadingCities(false);
-    setFilteredCityData(
-      response.map((city: any) => ({
-        id: city.id,
-        CityName: city.name,
-        iso2: city.iso2,
-      }))
-    );
-  };
-
-  const handleCityChange = (e: any) => {
+  const handleCountryChange = (e: any) => {
     handleInputChange(e);
   };
 
@@ -550,46 +803,30 @@ const CheckOut = ({
                         </div>
                       </div>
                       <div className="gi-checkout-pro">
-                        {cartItems.map((item: any, index: number) => (
-                          <div key={index} className="col-sm-12 mb-6">
-                            <div className="gi-product-inner">
-                              <div className="gi-pro-image-outer">
-                                <div className="gi-pro-image">
-                                  <a
-                                    href="/product-left-sidebar"
-                                    className="image"
-                                  >
-                                    <img
-                                      className="main-image"
-                                      src={item.image}
-                                      alt="Product"
-                                    />
-                                    <img
-                                      className="hover-image"
-                                      src={item.imageTwo}
-                                      alt="Product"
-                                    />
-                                  </a>
-                                </div>
-                              </div>
-                              <div className="gi-pro-content">
-                                <h5 className="gi-pro-title">
-                                  <a href="/product-left-sidebar">
-                                    {item.title}
-                                  </a>
-                                </h5>
-                                <div className="gi-pro-rating">
-                                  <StarRating rating={item.rating} />
-                                </div>
-                                <span className="gi-price">
-                                  <span className="old-price">
-                                    ${item.oldPrice}.00{" "}
-                                  </span>
-                                  <span className="new-price">
-                                    ${item.newPrice}.00
-                                  </span>
-                                </span>
-                              </div>
+                      <span className="text-left">Items</span>
+                      {cartItems.map((item: any, index: number) => (
+                          <div 
+                            key={index} 
+                            style={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center",
+                              padding: "10px 0",
+                              borderBottom: index < cartItems.length - 1 ? "1px solid #eee" : "none",
+                            }}
+                          >
+                            <div style={{ flex: 1 }}>
+                              <h6 style={{ margin: 0, fontSize: "14px", fontWeight: "500" }}>
+                                {item.title}
+                              </h6>
+                              <span style={{ fontSize: "12px", color: "#777" }}>
+                                Qty: {item.quantity}
+                              </span>
+                            </div>
+                            <div style={{ textAlign: "right" }}>
+                              <span style={{ fontSize: "14px", fontWeight: "600", color: "#333" }}>
+                                ${item.line_total.toFixed(2)}
+                              </span>
                             </div>
                           </div>
                         ))}
@@ -598,9 +835,9 @@ const CheckOut = ({
                   </div>
                   {/* <!-- Sidebar Summary Block --> */}
                 </div>
-                <div className="gi-sidebar-wrap gi-checkout-del-wrap">
+                {/* <div className="gi-sidebar-wrap gi-checkout-del-wrap"> */}
                   {/* <!-- Sidebar Summary Block --> */}
-                  <div className="gi-sidebar-block">
+                  {/* <div className="gi-sidebar-block">
                     <div className="gi-sb-title">
                       <h3 className="gi-sidebar-title">Delivery Method</h3>
                     </div>
@@ -651,9 +888,9 @@ const CheckOut = ({
                         </form>
                       </div>
                     </div>
-                  </div>
+                  </div> */}
                   {/* <!-- Sidebar Summary Block --> */}
-                </div>
+                {/* </div> */}
                 <div className="gi-sidebar-wrap gi-checkout-pay-wrap">
                   {/* <!-- Sidebar Payment Block --> */}
                   <div className="gi-sidebar-block">
@@ -712,9 +949,9 @@ const CheckOut = ({
                   </div>
                   {/* <!-- Sidebar Payment Block --> */}
                 </div>
-                <div className="gi-sidebar-wrap gi-check-pay-img-wrap">
+                {/* <div className="gi-sidebar-wrap gi-check-pay-img-wrap"> */}
                   {/* <!-- Sidebar Payment Block --> */}
-                  <div className="gi-sidebar-block">
+                  {/* <div className="gi-sidebar-block">
                     <div className="gi-sb-title">
                       <h3 className="gi-sidebar-title">Payment Method</h3>
                     </div>
@@ -731,15 +968,15 @@ const CheckOut = ({
                         </div>
                       </div>
                     </div>
-                  </div>
+                  </div> */}
                   {/* <!-- Sidebar Payment Block --> */}
-                </div>
+                {/* </div> */}
               </Col>
               <Col lg={8} md={12} className="gi-checkout-leftside m-t-991">
                 {/* <!-- checkout content Start --> */}
                 <div className="gi-checkout-content">
                   <div className="gi-checkout-inner">
-                    {optionVisible && (
+                    {/* {optionVisible && (
                       <>
                         <div className="gi-checkout-wrap m-b-40">
                           <div className="gi-checkout-block">
@@ -763,36 +1000,10 @@ const CheckOut = ({
                                       Guest Account
                                     </label>
                                   </span>
-                                  <span>
-                                    <input
-                                      type="radio"
-                                      id="account1"
-                                      name="radio-group"
-                                      value="register"
-                                      checked={checkOutMethod === "register"}
-                                      onChange={handleCheckOutChange}
-                                    />
-                                    <label htmlFor="account1">
-                                      Register Account
-                                    </label>
-                                  </span>
-                                  <span>
-                                    <input
-                                      type="radio"
-                                      id="account3"
-                                      name="radio-group"
-                                      value="login"
-                                      checked={checkOutMethod === "login"}
-                                      onChange={handleCheckOutChange}
-                                    />
-                                    <label htmlFor="account3">
-                                      Login Account
-                                    </label>
-                                  </span>
                                 </span>
                               </form>
 
-                              {btnVisible ? (
+                              {!isLogin && checkOutMethod === "guest" && (
                                 <>
                                   <div className="gi-new-desc">
                                     By creating an account you will be able to
@@ -800,17 +1011,10 @@ const CheckOut = ({
                                     status, and keep track of the orders you
                                     have previously made.
                                   </div>
-
-                                  <div className="gi-new-btn">
-                                    <a
-                                      onClick={handleContinueBtn}
-                                      className="gi-btn-2"
-                                    >
-                                      Continue
-                                    </a>
-                                  </div>
                                 </>
-                              ) : (
+                              )}
+
+                              {!isLogin && (
                                 <>
                                   {loginVisible && (
                                     <div
@@ -871,8 +1075,15 @@ const CheckOut = ({
                                               <button
                                                 className="gi-btn-2"
                                                 type="submit"
+                                                disabled={loginLoading}
                                               >
-                                                Continue
+                                                {loginLoading ? (
+                                                  <>
+                                                    <Spinner /> Logging in...
+                                                  </>
+                                                ) : (
+                                                  "Continue"
+                                                )}
                                               </button>
                                               <a
                                                 className="gi-check-login-fp"
@@ -892,74 +1103,133 @@ const CheckOut = ({
                           </div>
                         </div>
                       </>
-                    )}
+                    )} */}
 
                     {billingVisible && (
                       <div className="gi-checkout-wrap m-b-30 padding-bottom-3">
                         <div className="gi-checkout-block gi-check-bill">
                           <h3 className="gi-checkout-title">Billing Details</h3>
                           <div className="gi-bl-block-content">
-                            <div className="gi-check-subtitle">
-                              Checkout Options
-                            </div>
-                            <span className="gi-bill-option">
-                              <span>
-                                <input
-                                  type="radio"
-                                  id="bill1"
-                                  name="radio-group"
-                                  value="use"
-                                  checked={billingMethod === "use"}
-                                  onChange={handleBillingChange}
-                                  disabled={addressVisible.length === 0}
-                                />
-                                <label htmlFor="bill1">
-                                  I want to use an existing address
-                                </label>
-                              </span>
-                              <span>
-                                <input
-                                  type="radio"
-                                  id="bill2"
-                                  name="radio-group"
-                                  value="new"
-                                  checked={
-                                    billingMethod === "new" ||
-                                    addressVisible.length === 0
-                                  }
-                                  onChange={handleBillingChange}
-                                />
-                                <label htmlFor="bill2">
-                                  I want to use new address
-                                </label>
-                              </span>
-                            </span>
-                            {(billingMethod === "new" ||
-                              addressVisible.length === 0) && (
+                            {/* For logged-out users: Show login prompt */}
+                            {!isLogin && (
+                              <div
+                                style={{
+                                  padding: "15px 20px",
+                                  backgroundColor: "#f0f8ff",
+                                  border: "1px solid #5caf90",
+                                  borderRadius: "5px",
+                                  marginBottom: "20px",
+                                  textAlign: "center",
+                                }}
+                              >
+                                <p style={{ margin: 0, color: "#333", fontSize: "14px" }}>
+                                  <strong style={{ color: "#5caf90" }}>
+                                    💡 Want to save your addresses for faster checkout?
+                                  </strong>{" "}
+                                  <a
+                                    href="#"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      setCheckOutMethod("login");
+                                      setLoginVisible(true);
+                                      setBillingVisible(false);
+                                    }}
+                                    style={{
+                                      color: "#5caf90",
+                                      textDecoration: "underline",
+                                      fontWeight: "600",
+                                      cursor: "pointer",
+                                    }}
+                                  >
+                                    Log in here
+                                  </a>
+                                </p>
+                              </div>
+                            )}
+
+                            {/* For logged-in users: Show radio options */}
+                            {isLogin && (
+                              <>
+                                <div className="gi-check-subtitle">
+                                  Checkout Options
+                                </div>
+                                <span className="gi-bill-option">
+                                  <span>
+                                    <input
+                                      type="radio"
+                                      id="bill1"
+                                      name="radio-group"
+                                      value="use"
+                                      checked={billingMethod === "use"}
+                                      onChange={handleBillingChange}
+                                      disabled={addressVisible.length === 0}
+                                    />
+                                    <label htmlFor="bill1">
+                                      I want to use an existing address
+                                    </label>
+                                  </span>
+                                  <span>
+                                    <input
+                                      type="radio"
+                                      id="bill2"
+                                      name="radio-group"
+                                      value="new"
+                                      checked={billingMethod === "new"}
+                                      onChange={handleBillingChange}
+                                    />
+                                    <label htmlFor="bill2">
+                                      I want to use new address
+                                    </label>
+                                  </span>
+                                </span>
+                              </>
+                            )}
+
+                            {/* Address Form - Show for logged-out users OR when logged-in user chooses "new" or has no addresses */}
+                            {(!isLogin || billingMethod === "new" || addressVisible.length === 0) && (
                               <div className="gi-check-bill-form">
+                                <style>{`
+                                  @media (max-width: 772px) {
+                                    .gi-check-bill-form .gi-bill-wrap {
+                                      width: 100% !important;
+                                      display: block !important;
+                                      margin-right: 0 !important;
+                                    }
+                                    .gi-check-bill-form .gi-bill-half {
+                                      width: 100% !important;
+                                      display: block !important;
+                                    }
+                                  }
+                                  .gi-check-bill-form .gi-check-order-btn {
+                                    display: block !important;
+                                    width: 100% !important;
+                                    text-align: right !important;
+                                    margin-top: 10px !important;
+                                  }
+                                `}</style>
                                 <Form
                                   noValidate
                                   validated={validated}
-                                  onSubmit={handleSubmit}
+                                  onSubmit={(e) => e.preventDefault()}
                                   action="#"
                                   method="post"
                                 >
                                   <span
                                     style={{ marginTop: "10px" }}
-                                    className="gi-bill-wrap gi-bill-half"
+                                    className="gi-bill-wrap"
                                   >
-                                    <label>First Name*</label>
+                                    <label>Name*</label>
                                     <Form.Group>
                                       <Form.Control
                                         type="text"
-                                        name="firstName"
-                                        placeholder="Enter your first name"
+                                        name="name"
+                                        placeholder="Enter your full name"
                                         required
-                                        value={formData.firstName}
+                                        value={formData.name}
                                         onChange={handleInputChange}
                                       />
                                       <Form.Control.Feedback type="invalid">
-                                        Please Enter First Name.
+                                        Please Enter Name.
                                       </Form.Control.Feedback>
                                     </Form.Group>
                                   </span>
@@ -967,18 +1237,33 @@ const CheckOut = ({
                                     style={{ marginTop: "10px" }}
                                     className="gi-bill-wrap gi-bill-half"
                                   >
-                                    <label>Last Name*</label>
+                                    <label>Email</label>
                                     <Form.Group>
                                       <Form.Control
-                                        type="text"
-                                        name="lastName"
-                                        placeholder="Enter your last name"
+                                        type="email"
+                                        name="email"
+                                        placeholder="Enter your email (optional)"
+                                        value={formData.email}
+                                        onChange={handleInputChange}
+                                      />
+                                    </Form.Group>
+                                  </span>
+                                  <span
+                                    style={{ marginTop: "10px" }}
+                                    className="gi-bill-wrap gi-bill-half"
+                                  >
+                                    <label>Phone*</label>
+                                    <Form.Group>
+                                      <Form.Control
+                                        type="tel"
+                                        name="phone"
+                                        placeholder="Enter your phone number"
                                         required
-                                        value={formData.lastName}
+                                        value={formData.phone}
                                         onChange={handleInputChange}
                                       />
                                       <Form.Control.Feedback type="invalid">
-                                        Please Enter Last Name.
+                                        Please Enter Phone Number.
                                       </Form.Control.Feedback>
                                     </Form.Group>
                                   </span>
@@ -986,18 +1271,18 @@ const CheckOut = ({
                                     style={{ marginTop: "10px" }}
                                     className="gi-bill-wrap"
                                   >
-                                    <label>Address</label>
+                                    <label>Full Address*</label>
                                     <Form.Group>
                                       <Form.Control
                                         type="text"
-                                        name="address"
-                                        placeholder="Address Line 1"
-                                        value={formData.address}
+                                        name="full_address"
+                                        placeholder="Enter your full address"
+                                        value={formData.full_address}
                                         onChange={handleInputChange}
                                         required
                                       />
                                       <Form.Control.Feedback type="invalid">
-                                        Please Enter Address.
+                                        Please Enter Full Address.
                                       </Form.Control.Feedback>
                                     </Form.Group>
                                   </span>
@@ -1005,15 +1290,15 @@ const CheckOut = ({
                                     style={{ marginTop: "10px" }}
                                     className="gi-bill-wrap gi-bill-half"
                                   >
-                                    <label>Country</label>
+                                    <label>Country*</label>
                                     <span className="gi-bl-select-inner">
                                       <Form.Select
                                         size="sm"
                                         style={{ width: "1px" }}
                                         name="country"
-                                        id="gi-select-state"
+                                        id="gi-select-country"
                                         className="gi-bill-select"
-                                        defaultValue={formData.country}
+                                        value={formData.country}
                                         onChange={handleCountryChange}
                                         isInvalid={
                                           validated && !formData.country
@@ -1040,103 +1325,41 @@ const CheckOut = ({
                                     style={{ marginTop: "10px" }}
                                     className="gi-bill-wrap gi-bill-half"
                                   >
-                                    <label>Region State</label>
-                                    <Form.Group className="gi-bl-select-inner">
-                                      <Form.Select
-                                        size="sm"
-                                        style={{ width: "1px" }}
-                                        name="state"
-                                        id="gi-select-state"
-                                        className="gi-bill-select"
-                                        defaultValue={formData.state}
-                                        onChange={handleStateChange}
-                                        required
-                                      >
-                                        <option value="" disabled>
-                                          Region/State
-                                        </option>
-                                        {loadingStates ? (
-                                          <option disabled>Loading...</option>
-                                        ) : (
-                                          filteredStateData.map(
-                                            (state: any, index) => (
-                                              <option
-                                                key={index}
-                                                value={state.state_code}
-                                              >
-                                                {state.StateName}
-                                              </option>
-                                            )
-                                          )
-                                        )}
-                                      </Form.Select>
-                                    </Form.Group>
-                                  </span>
-                                  <span
-                                    style={{ marginTop: "10px" }}
-                                    className="gi-bill-wrap gi-bill-half"
-                                  >
-                                    <label>City *</label>
-                                    <Form.Group className="gi-bl-select-inner">
-                                      <Form.Select
-                                        size="sm"
-                                        style={{ width: "1px" }}
-                                        name="city"
-                                        id="gi-select-city"
-                                        className="gi-bill-select"
-                                        defaultValue={formData.city}
-                                        onChange={handleCityChange}
-                                        required
-                                      >
-                                        <option value="" disabled>
-                                          City
-                                        </option>
-                                        {loadingCities ? (
-                                          <option disabled>Loading...</option>
-                                        ) : (
-                                          filteredCityData.map(
-                                            (city: any, index) => (
-                                              <option
-                                                key={index}
-                                                value={city.iso2}
-                                              >
-                                                {city.CityName}
-                                              </option>
-                                            )
-                                          )
-                                        )}
-                                      </Form.Select>
-                                    </Form.Group>
-                                  </span>
-                                  <span
-                                    style={{ marginTop: "10px" }}
-                                    className="gi-bill-wrap gi-bill-half"
-                                  >
-                                    <label>Post Code</label>
+                                    <label>District*</label>
                                     <Form.Group>
                                       <Form.Control
                                         type="text"
-                                        name="postalCode"
-                                        pattern="^\d{5,6}$"
-                                        placeholder="Post Code"
-                                        value={formData.postalCode}
+                                        name="district"
+                                        placeholder="Enter district"
+                                        value={formData.district}
                                         onChange={handleInputChange}
                                         required
                                       />
                                       <Form.Control.Feedback type="invalid">
-                                        Please Enter 05-06 digit number.
+                                        Please Enter District.
                                       </Form.Control.Feedback>
                                     </Form.Group>
                                   </span>
-                                  <span className="gi-check-order-btn">
-                                    <button type="submit" className="gi-btn-2">
-                                      Add
-                                    </button>
+                                  <span
+                                    style={{ marginTop: "10px" }}
+                                    className="gi-bill-wrap gi-bill-half"
+                                  >
+                                    <label>Postal Code</label>
+                                    <Form.Group>
+                                      <Form.Control
+                                        type="text"
+                                        name="postal_code"
+                                        placeholder="Postal Code (optional)"
+                                        value={formData.postal_code}
+                                        onChange={handleInputChange}
+                                      />
+                                    </Form.Group>
                                   </span>
                                 </Form>
                               </div>
                             )}
-                            {billingMethod === "use" &&
+                            {/* Show existing addresses only for logged-in users */}
+                            {isLogin && billingMethod === "use" &&
                               addressVisible.length > 0 && (
                                 <>
                                   <div className="gi-checkout-block gi-check-bill">
@@ -1219,20 +1442,31 @@ const CheckOut = ({
                                                             color: "#777",
                                                           }}
                                                         >
-                                                          {address.firstName}{" "}
-                                                          {address.lastName}{" "}
+                                                          {address.name}{" "}
                                                         </span>
                                                       </li>
                                                       <li>
                                                         <strong className="gi-check-subtitle">
-                                                          Address :
+                                                          Email :
                                                         </strong>{" "}
                                                         <span
                                                           style={{
                                                             color: "#777",
                                                           }}
                                                         >
-                                                          {address.address}
+                                                          {address.email}{" "}
+                                                        </span>
+                                                      </li>
+                                                      <li>
+                                                        <strong className="gi-check-subtitle">
+                                                          Phone :
+                                                        </strong>{" "}
+                                                        <span
+                                                          style={{
+                                                            color: "#777",
+                                                          }}
+                                                        >
+                                                          {address.phone}{" "}
                                                         </span>
                                                       </li>
                                                       <li>
@@ -1244,7 +1478,7 @@ const CheckOut = ({
                                                             color: "#777",
                                                           }}
                                                         >
-                                                          {address.postalCode}
+                                                          {address.postal_code}
                                                         </span>
                                                       </li>
                                                     </ul>
@@ -1258,6 +1492,18 @@ const CheckOut = ({
                                                 >
                                                   <div className="gi-single-list">
                                                     <ul>
+                                                        <li>
+                                                        <strong className="gi-check-subtitle">
+                                                          Address :
+                                                        </strong>{" "}
+                                                        <span
+                                                          style={{
+                                                            color: "#777",
+                                                          }}
+                                                        >
+                                                          {address.full_address}
+                                                        </span>
+                                                      </li>
                                                       <li>
                                                         <strong className="gi-check-subtitle">
                                                           Country :
@@ -1267,7 +1513,7 @@ const CheckOut = ({
                                                             color: "#777",
                                                           }}
                                                         >
-                                                          {address.countryName}
+                                                          {address.country_name}
                                                         </span>
                                                       </li>
                                                       <li>
@@ -1279,7 +1525,7 @@ const CheckOut = ({
                                                             color: "#777",
                                                           }}
                                                         >
-                                                          {address.stateName}
+                                                          {address.district}
                                                         </span>
                                                       </li>
                                                       <li>
@@ -1291,7 +1537,7 @@ const CheckOut = ({
                                                             color: "#777",
                                                           }}
                                                         >
-                                                          {address.city}
+                                                          {address.district}
                                                         </span>
                                                       </li>
                                                     </ul>
@@ -1299,7 +1545,7 @@ const CheckOut = ({
                                                 </Col>
                                               </Row>
 
-                                              <div>
+                                              {/* <div>
                                                 <a
                                                   style={{
                                                     fontSize: "30px",
@@ -1316,7 +1562,7 @@ const CheckOut = ({
                                                 >
                                                   ×
                                                 </a>
-                                              </div>
+                                              </div> */}
                                             </div>
                                           </div>
                                         </li>
@@ -1329,14 +1575,21 @@ const CheckOut = ({
                         </div>
                       </div>
                     )}
-                    {btnVisible ||
-                      (!btnVisible === billingVisible && (
-                        <span className="gi-check-order-btn">
-                          <a onClick={handleCheckout} className="gi-btn-2">
-                            Place Order
-                          </a>
-                        </span>
-                      ))}
+                    {billingVisible && (
+                      <span className="gi-check-order-btn">
+                        <button
+                          onClick={handleCheckout}
+                          className="gi-btn-2"
+                          disabled={isCheckoutDisabled()}
+                          style={{
+                            opacity: isCheckoutDisabled() ? 0.6 : 1,
+                            cursor: isCheckoutDisabled() ? "not-allowed" : "pointer",
+                          }}
+                        >
+                          Place Order
+                        </button>
+                      </span>
+                    )}
                   </div>
                 </div>
                 {/* <!--cart content End --> */}

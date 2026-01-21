@@ -5,7 +5,7 @@ import { useSelector } from "react-redux";
 
 const TrackOrder = () => {
   const login = useSelector(
-    (state: RootState) => state.registration.isAuthenticated
+    (state: RootState) => state.user.isAuthenticated
   );
 
   if (!login) {

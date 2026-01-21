@@ -1,10 +1,10 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Swiper, SwiperSlide } from "swiper/react";
 import ItemCard from "../product-item/ItemCard";
 import { useDispatch, useSelector } from "react-redux";
-import { RootState } from "../../store";
-import { removeItem } from "../../store/reducers/cartSlice";
+import { RootState, AppDispatch } from "../../store";
+import { getCart, removeFromCart, updateCartItem, CartItem as BackendCartItem } from "../../store/reducers/orderSlice";
 import { Fade } from "react-awesome-reveal";
 import useSWR from "swr";
 import fetcher from "../fetcher-api/Fetcher";
@@ -30,14 +30,52 @@ const Cart = ({
   hasPaginate = false,
   onError = () => {},
 }) => {
-  const cartItems = useSelector((state: RootState) => state.cart.items);
-  const dispatch = useDispatch();
+  const dispatch = useDispatch<AppDispatch>();
+  const cart = useSelector((state: RootState) => state.order.cart);
+  const cartLoading = useSelector((state: RootState) => state.order.loading);
   const [filteredCountryData, setFilteredCountryData] = useState<Country[]>([]);
   const [filteredStateData, setFilteredStateData] = useState<State[]>([]);
   const [loadingStates, setLoadingStates] = useState(false);
   const [subTotal, setSubTotal] = useState(0);
   const [vat, setVat] = useState(0);
   const [discount, setDiscount] = useState(0);
+
+  // Fetch cart on mount
+  useEffect(() => {
+    dispatch(getCart());
+  }, [dispatch]);
+
+  // Transform backend cart items to component format
+  const cartItems = useMemo(() => {
+    if (!cart || !cart.items || cart.items.length === 0) return [];
+
+    return cart.items.map((item: BackendCartItem) => {
+      const variant = item.variant_detail || {};
+      const product = (item as any).product_detail || {};
+      
+      // Get images - prefer variant images, fallback to product images
+      const variantImages = variant.images || variant.product_images || [];
+      const productImages = product.images || [];
+      const images = variantImages.length > 0 ? variantImages : productImages;
+      const firstImage = images.find((img: any) => img.is_active) || images[0] || {};
+
+      // Get product name - prefer product name, fallback to variant name
+      const title = product.name || variant.name || "Product";
+
+      // Get image URL
+      const imageUrl = firstImage.image || firstImage.image_url || "/assets/img/common/placeholder.png";
+
+      return {
+        id: item.id,
+        variant_id: item.variant,
+        title: title,
+        newPrice: parseFloat(item.unit_price),
+        quantity: item.quantity,
+        image: imageUrl,
+        line_total: parseFloat(item.line_total),
+      };
+    });
+  }, [cart]);
 
   const { data: country } = useSWR("/api/country", fetcher, {
     onSuccess,
@@ -77,22 +115,19 @@ const Cart = ({
     const stateName = options[selectedIndex].text;
   };
 
+  // Update subtotal and VAT from backend cart
   useEffect(() => {
-    if (cartItems.length === 0) {
+    if (cart) {
+      const subtotal = parseFloat(cart.subtotal || "0");
+      setSubTotal(subtotal);
+      // Calculate VAT (20%)
+      const vatAmount = subtotal * 0.2;
+      setVat(vatAmount);
+    } else {
       setSubTotal(0);
       setVat(0);
-      return;
     }
-
-    const subtotal = cartItems.reduce(
-      (acc, item) => acc + item.newPrice * item.quantity,
-      0
-    );
-    setSubTotal(subtotal);
-    // Calculate VAT
-    const vatAmount = subtotal * 0.2;
-    setVat(vatAmount);
-  }, [cartItems]);
+  }, [cart]);
 
   const handleDiscountApplied = (discount) => {
     setDiscount(discount);
@@ -101,21 +136,32 @@ const Cart = ({
   const discountAmount = subTotal * (discount / 100);
   const total = subTotal + vat - discountAmount;
 
-  const handleRemoveFromCart = (item: any) => {
-    dispatch(removeItem(item.id));
+  const handleRemoveFromCart = async (item: any) => {
+    try {
+      await dispatch(removeFromCart(item.id)).unwrap();
+    } catch (error) {
+      console.error("Failed to remove item from cart:", error);
+    }
+  };
+
+  const handleQuantityChange = async (itemId: number, newQuantity: number) => {
+    if (newQuantity < 1) {
+      // If quantity is 0 or less, remove the item
+      await handleRemoveFromCart({ id: itemId });
+      return;
+    }
+
+    try {
+      await dispatch(updateCartItem({ id: itemId, quantity: newQuantity })).unwrap();
+    } catch (error) {
+      console.error("Failed to update cart item quantity:", error);
+    }
   };
 
   const { data, error } = useSWR("/api/deal", fetcher, { onSuccess, onError });
 
-  if (error) return <div>Failed to load products</div>;
-  if (!data)
-    return (
-      <div>
-        <Spinner />
-      </div>
-    );
-
   const getData = () => {
+    if (!data) return [];
     if (hasPaginate) return data.data;
     else return data;
   };
@@ -125,7 +171,11 @@ const Cart = ({
       <section className="gi-cart-section padding-tb-40">
         <h2 className="d-none">Cart Page</h2>
         <div className="container">
-          {cartItems.length === 0 ? (
+          {cartLoading ? (
+            <div style={{ textAlign: "center", padding: "40px" }}>
+              <Spinner />
+            </div>
+          ) : cartItems.length === 0 ? (
             <div
               style={{
                 textAlign: "center",
@@ -323,6 +373,7 @@ const Cart = ({
                                       <QuantitySelector
                                         quantity={item.quantity}
                                         id={item.id}
+                                        setQuantity={(newQty: number) => handleQuantityChange(item.id, newQty)}
                                       />
                                     </div>
                                   </td>
@@ -330,7 +381,7 @@ const Cart = ({
                                     data-label="Total"
                                     className="gi-cart-pro-subtotal"
                                   >
-                                    ${item.newPrice * item.quantity}
+                                    ${item.line_total.toFixed(2)}
                                   </td>
                                   <td
                                     onClick={() => handleRemoveFromCart(item)}

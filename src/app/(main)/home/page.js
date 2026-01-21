@@ -21,13 +21,13 @@ const page = () => {
             <Category />
             <Deal />
             <RoastedNuts />
-            <NutPowder />
+            {/* <NutPowder /> */}
             {/* <Banner /> */}
             {/* <GroceryArrials /> */}
-            <OfferBanners />
+            {/* <OfferBanners /> */}
             {/* <Services /> */}
             {/* <Trending /> */}
-            <LatestBlog />
+            {/* <LatestBlog /> */}
         </>
     )
 }

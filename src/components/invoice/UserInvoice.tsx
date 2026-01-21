@@ -7,7 +7,7 @@ import { PDFContent } from "@/components/pdf-content/PDFContent";
 
 const UserInvoice = () => {
   const login = useSelector(
-    (state: RootState) => state.registration.isAuthenticated
+    (state: RootState) => state.user.isAuthenticated
   );
 
   if (!login) {

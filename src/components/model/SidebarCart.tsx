@@ -1,40 +1,96 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { RootState } from "../../store";
-import { removeItem } from "../../store/reducers/cartSlice";
+import { RootState, AppDispatch } from "../../store";
+import { getCart, removeFromCart, updateCartItem, CartItem as BackendCartItem } from "../../store/reducers/orderSlice";
 import Link from "next/link";
 import QuantitySelector from "../quantity-selector/QuantitySelector";
+import Spinner from "../button/Spinner";
 
 const SidebarCart = ({ closeCart, isCartOpen }: any) => {
-  const cartItems = useSelector((state: RootState) => state.cart.items);
+  const dispatch = useDispatch<AppDispatch>();
+  const cart = useSelector((state: RootState) => state.order.cart);
+  const cartLoading = useSelector((state: RootState) => state.order.loading);
   const [subTotal, setSubTotal] = useState(0);
-  const [vat, setVat] = useState(0);
-  const dispatch = useDispatch();
+
+  // Fetch cart when sidebar opens
+  useEffect(() => {
+    if (isCartOpen) {
+      dispatch(getCart());
+    }
+  }, [isCartOpen, dispatch]);
+
+  // Transform backend cart items to component format
+  const cartItems = useMemo(() => {
+    if (!cart || !cart.items || cart.items.length === 0) return [];
+
+    return cart.items.map((item: BackendCartItem) => {
+      const variant = item.variant_detail || {};
+      const product = (item as any).product_detail || {};
+      
+      // Get images - prefer variant images, fallback to product images
+      const variantImages = variant.images || variant.product_images || [];
+      const productImages = product.images || [];
+      const images = variantImages.length > 0 ? variantImages : productImages;
+      const firstImage = images.find((img: any) => img.is_active) || images[0] || {};
+
+      // Get product name - prefer product name, fallback to variant name
+      const title = product.name || variant.name || "Product";
+
+      // Get weight from variant
+      const weight = variant.weight_grams 
+        ? `${parseFloat(variant.weight_grams.toString())}g` 
+        : "";
+
+      return {
+        id: item.id,
+        variant_id: item.variant,
+        title: title,
+        newPrice: parseFloat(item.unit_price),
+        quantity: item.quantity,
+        image: firstImage.image || firstImage.image_url || "/assets/img/common/placeholder.png",
+        waight: weight,
+        line_total: parseFloat(item.line_total),
+      };
+    });
+  }, [cart]);
 
   useEffect(() => {
-    if (cartItems.length === 0) {
+    if (cart) {
+      const subtotal = parseFloat(cart.subtotal || "0");
+      setSubTotal(subtotal);
+    } else {
       setSubTotal(0);
-      setVat(0);
-      return;
     }
+  }, [cart]);
 
-    const subtotal = cartItems.reduce(
-      (acc, item) => acc + item.newPrice * item.quantity,
-      0
-    );
-    setSubTotal(subtotal);
-    // Calculate VAT
-    const vatAmount = subtotal * 0.2;
-    setVat(vatAmount);
-  }, [cartItems]);
-  const total = subTotal + vat;
+  const total = subTotal;
 
   const handleSubmit = (e: any) => {
     e.preventDefault();
   };
 
-  const handleRemoveFromCart = (item: any) => {
-    dispatch(removeItem(item.id));
+  const handleRemoveFromCart = async (item: any) => {
+    try {
+      // removeFromCart already returns the full cart, so no need to call getCart again
+      await dispatch(removeFromCart(item.id)).unwrap();
+    } catch (error) {
+      console.error("Failed to remove item from cart:", error);
+    }
+  };
+
+  const handleQuantityChange = async (itemId: number, newQuantity: number) => {
+    if (newQuantity < 1) {
+      // If quantity is 0 or less, remove the item
+      await handleRemoveFromCart({ id: itemId });
+      return;
+    }
+
+    try {
+      // updateCartItem already returns the full cart, so no need to call getCart again
+      await dispatch(updateCartItem({ id: itemId, quantity: newQuantity })).unwrap();
+    } catch (error) {
+      console.error("Failed to update cart item quantity:", error);
+    }
   };
 
   return (
@@ -58,14 +114,18 @@ const SidebarCart = ({ closeCart, isCartOpen }: any) => {
                 <i onClick={handleSubmit} className="fi-rr-cross-small"></i>
               </Link>
             </div>
-            {cartItems.length === 0 ? (
+            {cartLoading ? (
+              <div className="gi-pro-content cart-pro-title">
+                <Spinner />
+              </div>
+            ) : cartItems.length === 0 ? (
               <div className="gi-pro-content cart-pro-title">
                 Your cart is empty.
               </div>
             ) : (
               <ul className="gi-cart-pro-items">
                 {cartItems.map((item: any, index: number) => (
-                  <li key={index}>
+                  <li key={item.id || index}>
                     <Link
                       onClick={handleSubmit}
                       href="/"
@@ -79,12 +139,13 @@ const SidebarCart = ({ closeCart, isCartOpen }: any) => {
                       </Link>
                       <span className="cart-price">
                         {item.waight}{" "}
-                        <span>${item.newPrice * item.quantity}.00</span>
+                        <span>{item.line_total.toFixed(2)} BDT</span>
                       </span>
                       <div className="qty-plus-minus gi-qty-rtl">
                         <QuantitySelector
                           id={item.id}
                           quantity={item.quantity}
+                          setQuantity={(newQty: number) => handleQuantityChange(item.id, newQty)}
                         />
                       </div>
                       <Link
@@ -107,16 +168,12 @@ const SidebarCart = ({ closeCart, isCartOpen }: any) => {
                   <tbody>
                     <tr>
                       <td className="text-left">Sub-Total :</td>
-                      <td className="text-right">${subTotal.toFixed(2)}</td>
-                    </tr>
-                    <tr>
-                      <td className="text-left">VAT (20%) :</td>
-                      <td className="text-right">${vat.toFixed(2)}</td>
+                      <td className="text-right">{subTotal.toFixed(2)} BDT</td>
                     </tr>
                     <tr>
                       <td className="text-left">Total :</td>
                       <td className="text-right primary-color">
-                        ${total.toFixed(2)}
+                        {total.toFixed(2)} BDT
                       </td>
                     </tr>
                   </tbody>

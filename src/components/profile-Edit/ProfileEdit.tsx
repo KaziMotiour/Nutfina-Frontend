@@ -1,66 +1,59 @@
 "use client";
 import { useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
-import {
-  getRegistrationData,
-  setRegistrationData,
-} from "../login/RegisterPage";
-import { useDispatch, useSelector } from "react-redux";
-import { RootState } from "@/store";
-import { toggleSwitch } from "@/store/reducers/cartSlice";
-import VandorEdit from "./VandorEdit";
 import { Form } from "react-bootstrap";
+import { useDispatch, useSelector } from "react-redux";
+import { AppDispatch, RootState } from "@/store";
+import { getCurrentUser, updateUser, clearError } from "@/store/reducers/userSlice";
+import { showSuccessToast, showErrorToast } from "@/components/toast-popup/Toastify";
 
 export interface RegistrationData {
-  firstName: string;
-  lastName: string;
+  fullName: string;
   email: string;
-  phoneNumber: string;
-  address: string;
-  city: string;
-  postCode: string;
-  country: string;
-  state: string;
-  profilePhoto?: string;
-  description: string;
+  phone: string;
+  avatar?: string;
 }
 
 const ProfileEdit = () => {
   const router = useRouter();
-  const dispatch = useDispatch();
-  const isSwitchOnFromRedux = useSelector((state: RootState) => state.cart.isSwitchOn);
-  const [isSwitchOn, setIsSwitchOn] = useState<boolean>(false);
+  const dispatch = useDispatch<AppDispatch>();
+  const { user, loading, error } = useSelector((state: RootState) => state.user);
   const [validated, setValidated] = useState(false);
   const [formData, setFormData] = useState<RegistrationData>({
-    firstName: "",
-    lastName: "",
+    fullName: "",
     email: "",
-    phoneNumber: "",
-    address: "",
-    city: "",
-    postCode: "",
-    country: "",
-    state: "",
-    profilePhoto: "",
-    description: "",
+    phone: "",
+    avatar: "",
   });
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
 
+  // Fetch current user data on mount
   useEffect(() => {
-    const data = getRegistrationData();
-    if (data.length > 0) {
-      const user = data[data.length - 1];
-      setFormData(user);
+    dispatch(getCurrentUser());
+  }, [dispatch]);
+
+  // Populate form when user data is loaded
+  useEffect(() => {
+    if (user) {
+      setFormData({
+        fullName: user.full_name || "",
+        email: user.email || "",
+        phone: user.phone || "",
+        avatar: user.avatar_url || user.avatar || "",
+      });
+      if (user.avatar_url || user.avatar) {
+        setAvatarPreview(user.avatar_url || user.avatar || null);
+      }
     }
-  }, []);
+  }, [user]);
 
+  // Clear error on unmount
   useEffect(() => {
-    setIsSwitchOn(isSwitchOnFromRedux);
-  }, [isSwitchOnFromRedux]);
-
-
-  const handleSwitchToggle = () => {
-    dispatch(toggleSwitch());
-  };
+    return () => {
+      dispatch(clearError());
+    };
+  }, [dispatch]);
 
   const handleInputChange = (
     e: React.ChangeEvent<
@@ -77,18 +70,16 @@ const ProfileEdit = () => {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setAvatarFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
-        setFormData((prevData) => ({
-          ...prevData,
-          profilePhoto: reader.result as string,
-        }));
+        setAvatarPreview(reader.result as string);
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     const form = e.currentTarget;
@@ -98,19 +89,38 @@ const ProfileEdit = () => {
       return;
     }
 
+    try {
+      // Create FormData if avatar file is selected, otherwise use JSON
+      let updateData: FormData | { full_name: string; phone: string };
+      
+      if (avatarFile) {
+        const formDataObj = new FormData();
+        formDataObj.append("full_name", formData.fullName.trim());
+        formDataObj.append("phone", formData.phone);
+        formDataObj.append("avatar", avatarFile);
+        updateData = formDataObj;
+      } else {
+        updateData = {
+          full_name: formData.fullName.trim(),
+          phone: formData.phone,
+        };
+      }
 
-    // Update the registration data in local storage
-    const updatedData = [...getRegistrationData()];
-    updatedData[updatedData.length - 1] = formData;
-    setRegistrationData(updatedData);
-
-    // Redirect to the user profile page after editing
-    router.push("/user-profile");
+      const result = await dispatch(updateUser(updateData));
+      
+      if (updateUser.fulfilled.match(result)) {
+        showSuccessToast("Profile updated successfully!");
+        // Refresh user data
+        await dispatch(getCurrentUser());
+        // Redirect to the user profile page after editing
+        router.push("/user-profile");
+      } else {
+        showErrorToast(result.payload as string || "Failed to update profile");
+      }
+    } catch (err: any) {
+      showErrorToast(err.message || "An unexpected error occurred");
+    }
   };
-
-  if (isSwitchOn) {
-    return <VandorEdit />;
-  }
 
   return (
     <>
@@ -123,77 +133,41 @@ const ProfileEdit = () => {
             <p>Best place to buy and sell digital products.</p>
           </div>
           <div className="row">
-            <div className="gi-register-wrapper">
+            <div 
+              className="gi-register-wrapper"
+              style={{
+                maxWidth: "50%",
+                margin: "0 auto",
+                width: "100%"
+              }}
+            >
               <div className="gi-register-container">
                 <div className="gi-register-form">
-                  <span
-                    style={{
-                      display: "flex",
-                      justifyContent: "end",
-                      marginTop: "10px",
-                    }}
-                  >
-                    {isSwitchOn ? "Switch is Vendor" : "Switch"}
-                  </span>
-                  <span
-                    style={{
-                      display: "flex",
-                      justifyContent: "end",
-                      marginTop: "10px",
-                    }}
-                    className="switch"
-                  >
-                    <input
-                      onChange={handleSwitchToggle}
-                      checked={isSwitchOn}
-                      id="switch-rounded"
-                      type="checkbox"
-                    />
-                    <label htmlFor="switch-rounded"></label>
-                  </span>
-                  <Form noValidate validated={validated}
+                  <Form 
+                    noValidate 
+                    validated={validated}
                     className="gi-blog-form"
                     action="#"
                     method="post"
                     onSubmit={handleSubmit}
                   >
-                    <span className="gi-register-wrap gi-register-half">
-                      <label>First Name*</label>
+                    <span className="gi-register-wrap">
+                      <label>Full Name*</label>
                       <Form.Group>
                         <Form.Control
                           type="text"
-                          name="firstName"
-                          placeholder="Enter your first name"
-                          value={formData.firstName}
+                          name="fullName"
+                          placeholder="Enter your full name"
+                          value={formData.fullName}
                           onChange={handleInputChange}
                           required
                         />
-                         <Form.Control.Feedback type="invalid">
-                          Please Enter First Name.
+                        <Form.Control.Feedback type="invalid">
+                          Please Enter Full Name.
                         </Form.Control.Feedback>
                       </Form.Group>
                     </span>
-                    <span className="gi-register-wrap gi-register-half">
-                      <label>Last Name*</label>
-                      <Form.Group>
-                        <Form.Control
-                          type="text"
-                          name="lastName"
-                          placeholder="Enter your last name"
-                          required
-                          value={formData.lastName}
-                          onChange={handleInputChange}
-                        />
-                         <Form.Control.Feedback type="invalid">
-                          Please Enter Last Name.
-                        </Form.Control.Feedback>
-                      </Form.Group>
-                     
-                    </span>
-                    <span
-                      style={{ marginTop: "10px" }}
-                      className="gi-register-wrap gi-register-half"
-                    >
+                    <span style={{ marginTop: "10px" }} className="gi-register-wrap">
                       <label>Email*</label>
                       <Form.Group>
                         <Form.Control
@@ -203,25 +177,25 @@ const ProfileEdit = () => {
                           required
                           value={formData.email}
                           onChange={handleInputChange}
+                          readOnly
+                          disabled
+                          style={{ backgroundColor: "#f5f5f5", cursor: "not-allowed" }}
                         />
                         <Form.Control.Feedback type="invalid">
                           Please Enter correct username.
                         </Form.Control.Feedback>
                       </Form.Group>
                     </span>
-                    <span
-                      style={{ marginTop: "10px" }}
-                      className="gi-register-wrap gi-register-half"
-                    >
+                    <span style={{ marginTop: "10px" }} className="gi-register-wrap">
                       <label>Phone Number*</label>
                       <Form.Group>
                         <Form.Control
                           type="text"
-                          name="phoneNumber"
+                          name="phone"
                           placeholder="Enter your phone number"
                           pattern="^\d{10,12}$"
                           required
-                          value={formData.phoneNumber}
+                          value={formData.phone}
                           onChange={handleInputChange}
                         />
                         <Form.Control.Feedback type="invalid">
@@ -229,52 +203,7 @@ const ProfileEdit = () => {
                         </Form.Control.Feedback>
                       </Form.Group>
                     </span>
-                    <span
-                      style={{ marginTop: "10px" }}
-                      className="gi-register-wrap"
-                    >
-                      <label>Address</label>
-                      <Form.Group>
-                        <Form.Control
-                          type="text"
-                          name="address"
-                          placeholder="Address Line 1"
-                          value={formData.address}
-                          onChange={handleInputChange}
-                          required
-                        />
-                         <Form.Control.Feedback type="invalid">
-                          Please Enter Address.
-                        </Form.Control.Feedback>
-                      </Form.Group>
-                    </span>
-                    <span
-                      style={{ marginTop: "10px" }}
-                      className="gi-register-wrap"
-                    >
-                      <div className="gi-leave-form">
-                        <Form.Group>
-                          <label>About Me</label>
-                          <Form.Control
-                            as="textarea"
-                            rows={3}
-                            name="description"
-                            placeholder="Message"
-                            required
-                            value={formData.description}
-                            onChange={handleInputChange}
-                          />
-                          <Form.Control.Feedback type="invalid">
-                          This field is required
-                          </Form.Control.Feedback>
-                        </Form.Group>
-                      </div>
-                    </span>
-
-                    <span
-                      style={{ paddingTop: "10px", marginTop: "10px" }}
-                      className="gi-register-wrap"
-                    >
+                    <span style={{ paddingTop: "10px", marginTop: "10px" }} className="gi-register-wrap">
                       <label>Profile Photo</label>
                       <input
                         style={{ paddingTop: "10px" }}
@@ -283,20 +212,33 @@ const ProfileEdit = () => {
                         name="profilePhoto"
                         onChange={handleFileChange}
                       />
-                      {formData.profilePhoto && (
-                        <img
-                          src={formData.profilePhoto}
-                          alt="Profile"
-                          width="100"
-                        />
+                      {(avatarPreview || formData.avatar) && (
+                        <div style={{ marginTop: "10px" }}>
+                          <img
+                            src={avatarPreview || formData.avatar}
+                            alt="Profile"
+                            width="100"
+                            height="100"
+                            style={{ borderRadius: "50%", objectFit: "cover" }}
+                          />
+                        </div>
                       )}
                     </span>
+                    {error && (
+                      <div style={{ color: "red", marginTop: "10px", textAlign: "center" }}>
+                        {error}
+                      </div>
+                    )}
                     <span
                       style={{ justifyContent: "end", marginTop: "10px" }}
                       className="gi-register-wrap gi-register-btn"
                     >
-                      <button className="gi-btn-1" type="submit">
-                        Save
+                      <button 
+                        className="gi-btn-1" 
+                        type="submit"
+                        disabled={loading}
+                      >
+                        {loading ? "Saving..." : "Save"}
                       </button>
                     </span>
                   </Form>

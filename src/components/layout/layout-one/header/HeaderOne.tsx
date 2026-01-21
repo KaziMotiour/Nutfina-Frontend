@@ -6,7 +6,7 @@ import SidebarCart from "../../../model/SidebarCart";
 import MobileManuSidebar from "../../../model/MobileManuSidebar";
 import Dropdown from "react-bootstrap/Dropdown";
 
-function HeaderOne({ cartItems, wishlistItems }) {
+function HeaderOne({ cartItemCount, wishlistItems }: { cartItemCount: number; wishlistItems: any[] }) {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [activeMainMenu, setActiveMainMenu] = useState<string | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -153,7 +153,7 @@ function HeaderOne({ cartItems, wishlistItems }) {
                       <span className="main-label-note-new"></span>
                     </div>
                     <span className="gi-header-count gi-cart-count">
-                      {cartItems.length}
+                      {cartItemCount}
                     </span>
                   </Link>
                   {/* <!-- Header Cart End -->

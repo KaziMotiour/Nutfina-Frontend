@@ -2,16 +2,12 @@ import { useEffect, useState } from "react";
 import StarRating from "../stars/StarRating";
 import QuickViewModal from "../model/QuickViewModal";
 import { useDispatch, useSelector } from "react-redux";
-import {
-  addItem,
-  setItems,
-  updateItemQuantity,
-} from "../../store/reducers/cartSlice";
 import Link from "next/link";
-import { showSuccessToast } from "../toast-popup/Toastify";
-import { RootState } from "@/store";
+import { showSuccessToast, showErrorToast } from "../toast-popup/Toastify";
+import { RootState, AppDispatch } from "@/store";
 import { addWishlist, removeWishlist } from "@/store/reducers/wishlistSlice";
-import { addCompare, removeCompareItem } from "@/store/reducers/compareSlice";
+import { addToCart, getCart } from "@/store/reducers/orderSlice";
+// import { addCompare, removeCompareItem } from "@/store/reducers/compareSlice";
 import SidebarCart from "../model/SidebarCart";
 
 interface Item {
@@ -30,42 +26,44 @@ interface Item {
   sku: number;
   category: string;
   quantity: number;
+  sale: string;
 }
 const ItemCard = ({ data, showAddToCart = false }: any) => {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [show, setShow] = useState(false);
-  const dispatch = useDispatch();
-  const compareItems = useSelector((state: RootState) => state.compare.compare);
+  const [isAddingToCart, setIsAddingToCart] = useState(false);
+  const dispatch = useDispatch<AppDispatch>();
+  // const compareItems = useSelector((state: RootState) => state.compare.compare);
   const wishlistItems = useSelector(
     (state: RootState) => state.wishlist.wishlist
   );
-  const cartItems = useSelector((state: RootState) => state.cart.items);
+  const cart = useSelector((state: RootState) => state.order.cart);
+  const cartItems = cart?.items || [];
 
-  useEffect(() => {
-    const itemsFromLocalStorage = JSON.parse(localStorage.getItem("products") || "[]");
-    if (itemsFromLocalStorage.length) {
-      dispatch(setItems(itemsFromLocalStorage));
+  // Check if item is in cart (by variant_id)
+  const isItemInCart = (variantId: number) => {
+    return cartItems.some((item: any) => item.variant === variantId || item.variant_detail?.id === variantId);
+  };
+
+  const handleCart = async (data: any) => {
+    // Get variant_id from data
+    // data.id might be variant_id, or we need to get it from variant_detail
+    const variantId = data.variant_id || data.variant_detail?.id || data.id;
+    
+    if (!variantId) {
+      showErrorToast("Product variant not found");
+      return;
     }
-  }, [dispatch]);
 
-  const handleCart = (data: Item) => {
-    const isItemInCart = cartItems.some((item: Item) => item.id === data.id);
-
-    if (!isItemInCart) {
-      dispatch(addItem({ ...data, quantity: 1 }));
-      showSuccessToast("Add product in Cart Successfully!");
-    } else {
-      const updatedCartItems = cartItems.map((item: Item) =>
-        item.id === data.id
-          ? {
-              ...item,
-              quantity: item.quantity + 1,
-              price: item.newPrice + data.newPrice,
-            } // Increment quantity and update price
-          : item
-      );
-      dispatch(updateItemQuantity(updatedCartItems));
-      showSuccessToast("Add product in Cart Successfully!");
+    setIsAddingToCart(true);
+    try {
+      // addToCart already returns the full cart, so no need to call getCart again
+      await dispatch(addToCart({ variant_id: variantId, quantity: 1 })).unwrap();
+      showSuccessToast("Product added to cart successfully!");
+    } catch (error: any) {
+      showErrorToast(error || "Failed to add product to cart");
+    } finally {
+      setIsAddingToCart(false);
     }
   };
 
@@ -88,24 +86,24 @@ const ItemCard = ({ data, showAddToCart = false }: any) => {
     }
   };
 
-  const isInCompare = (data: Item) => {
-    return compareItems.some((item: Item) => item.id === data.id);
-  };
+  // const isInCompare = (data: Item) => {
+  //   return compareItems.some((item: Item) => item.id === data.id);
+  // };
 
-  const handleCompareItem = (data: Item) => {
-    if (!isInCompare(data)) {
-      dispatch(addCompare(data));
-      showSuccessToast(`Add product in Compare list Successfully!`, {
-        icon: false,
-      });
-    } else {
-      dispatch(removeCompareItem(data.id));
-      showSuccessToast("Remove product on Compare list Successfully!", {
-        icon: false,
-      });
-      // showErrorToast("Item already have to compare list");
-    }
-  };
+  // const handleCompareItem = (data: Item) => {
+  //   if (!isInCompare(data)) {
+  //     dispatch(addCompare(data));
+  //     showSuccessToast(`Add product in Compare list Successfully!`, {
+  //       icon: false,
+  //     });
+  //   } else {
+  //     dispatch(removeCompareItem(data.id));
+  //     showSuccessToast("Remove product on Compare list Successfully!", {
+  //       icon: false,
+  //     });
+  //     // showErrorToast("Item already have to compare list");
+  //   }
+  // };
 
   const handleSubmit = (e: any) => {
     e.preventDefault();
@@ -247,12 +245,13 @@ const ItemCard = ({ data, showAddToCart = false }: any) => {
                     </div>
                     {showAddToCart && (
                       <div className="col-12 d-flex justify-content-center">
-                        {cartItems.some((item: Item) => item.id === data.id) ? (
+                        {isItemInCart(data.variant_id || data.variant_detail?.id || data.id) ? (
                           <button
                             title="Added to cart"
                             className="gi-btn-group add-to-cart add-to-cart-btn border rounded p-2 w-100 w-sm-auto mt-2 mt-sm-0"
                             style={{ backgroundColor: '#2e7d32', color: '#fff', opacity: 1, cursor: 'default' }}
                             onClick={openCart}
+                            disabled={isAddingToCart}
                           >
                             <i className="fi-rr-check"></i>
                             <span className="d-sm-inline"> In your cart</span>
@@ -262,10 +261,11 @@ const ItemCard = ({ data, showAddToCart = false }: any) => {
                             title="Add to cart"
                             className="gi-btn-group add-to-cart add-to-cart-btn border rounded p-2 w-100 w-sm-auto mt-2 mt-sm-0"
                             onClick={() => handleCart(data)}
-                            style={{ backgroundColor: '#5caf90', color: '#fff' }}
+                            disabled={isAddingToCart}
+                            style={{ backgroundColor: '#5caf90', color: '#fff', opacity: isAddingToCart ? 0.6 : 1 }}
                           >
                             <i className="fi-rr-shopping-basket"></i>
-                            <span className="d-sm-inline"> Add to cart</span>
+                            <span className="d-sm-inline"> {isAddingToCart ? 'Adding...' : 'Add to cart'}</span>
                           </button>
                         )}
                       </div>

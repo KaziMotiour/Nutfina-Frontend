@@ -1,6 +1,7 @@
 "use client";
 import { Col } from "react-bootstrap";
 import ItemCard from "./ItemCard";
+import { useEffect } from "react";
 
 const ShopProductItem = ({
   data,
@@ -12,6 +13,10 @@ const ShopProductItem = ({
   const sizeProps = isList
     ? { xl: 12 }
     : { xl: xl, lg: 4, xs: 12, sm: 6, md: 4 };
+
+    useEffect(() => {
+      console.log(data);
+    }, [data]);
 
   return (
     <Col

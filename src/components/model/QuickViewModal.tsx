@@ -30,32 +30,43 @@ interface Item {
 }
 
 interface Option {
+  id: number;
   value: string;
   tooltip: string;
+  oldPrice: number;
+  newPrice: number;
 }
 
 const QuickViewModal = ({ show, handleClose, data }) => {
   const dispatch = useDispatch();
   const cartItems = useSelector((state: RootState) => state.cart.items);
   const [quantity, setQuantity] = useState(1);
-
-  const options: Option[] = [
-    { value: "250g", tooltip: "Small" },
-    { value: "500g", tooltip: "Medium" },
-    { value: "1kg", tooltip: "Large" },
-    { value: "2kg", tooltip: "Extra Large" },
-  ];
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [options, setOptions] = useState<Option[]>([]);
+  const [oldPrice, setOldPrice] = useState(0);
+  const [newPrice, setNewPrice] = useState(0);
 
   useEffect(() => {
-    if (cartItems.length === 0) {
-      return;
-    }
+    if (data?.options?.length > 0) {
+      console.log(data?.options);
 
-    const subtotal = cartItems.reduce(
-      (acc, item) => acc + item.newPrice * item.quantity,
-      0
-    );
-  }, [cartItems]);
+      setOptions(data?.options?.map((option: any) => ({
+        id: option.id,
+        value: option.weight, 
+        tooltip: option.weight,
+        oldPrice: option.oldPrice || 0,
+        newPrice: option.newPrice || 0,
+      })));
+      console.log(options);
+    }
+  }, [data?.options]);
+
+  useEffect(() => {
+    setOldPrice(data?.oldPrice);
+    setNewPrice(data?.newPrice);
+  }, [data]);
+
+
 
   const handleCart = (data: Item) => {
     const isItemInCart = cartItems.some((item: Item) => item.id === data.id);
@@ -71,7 +82,7 @@ const QuickViewModal = ({ show, handleClose, data }) => {
           ? {
               ...item,
               quantity: item.quantity + quantity,
-              price: item.newPrice + data.newPrice,
+              price: item.newPrice + newPrice,
             } // Increment quantity and update price
           : item
       );
@@ -80,6 +91,14 @@ const QuickViewModal = ({ show, handleClose, data }) => {
         icon: false,
       });
     }
+  };
+
+  const handleClick = (id: number) => {
+    setActiveIndex(id);
+    const option = options.find((option: any) => option.id === id);
+    
+    setNewPrice(option?.newPrice || 0);
+    setOldPrice(option?.oldPrice || 0);
   };
 
   return (
@@ -97,11 +116,11 @@ const QuickViewModal = ({ show, handleClose, data }) => {
         <div className="modal-dialog-centered" role="document">
           <div className="modal-content">
             <button
-              type="button"
-              className="btn-close qty_close"
-              data-bs-dismiss="modal"
-              aria-label="Close"
-              onClick={handleClose}
+                type="button"
+                className="btn-close qty_close"
+                data-bs-dismiss="modal"
+                aria-label="Close"
+                onClick={handleClose}
             ></button>
             <Modal.Body>
               <Row>
@@ -133,9 +152,9 @@ const QuickViewModal = ({ show, handleClose, data }) => {
 
                     <div className="gi-quickview-price">
                       <span className="new-price">
-                        ${data.newPrice * data.quantity}
+                        ${newPrice * quantity}
                       </span>
-                      <span className="old-price">${data.oldPrice}</span>
+                      <span className="old-price">${oldPrice}</span>
                     </div>
 
                     <div className="gi-pro-variation">
@@ -150,15 +169,15 @@ const QuickViewModal = ({ show, handleClose, data }) => {
                             ]}
                             subCategory={data.category}
                           />
-                          {/* <ul className="gi-opt-size">
+                          <ul className="gi-opt-size">
                             {options.map((data: any, index) => (
-                              <li key={index} onClick={() => handleClick(index)} className={activeIndex === index ? "active" : ""}>
+                              <li key={index} onClick={() => handleClick(data.id)} className={activeIndex === data.id ? "active" : ""}>
                                 <a className="gi-opt-sz" data-tooltip={data.tooltip}>
                                   {data.value}
                                 </a>
                               </li>
                             ))}
-                          </ul> */}
+                          </ul>
                         </div>
                       </div>
                     </div>
