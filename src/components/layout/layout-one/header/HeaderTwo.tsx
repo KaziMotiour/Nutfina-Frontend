@@ -45,6 +45,7 @@ function HeaderTwo({ cartItemCount, wishlistItems }: { cartItemCount: number; wi
   const handleLogout = () => {
     dispatch(logout());
     router.push("/home");
+    window.location.reload();
   };
 
   return (
@@ -129,6 +130,11 @@ function HeaderTwo({ cartItemCount, wishlistItems }: { cartItemCount: number; wi
                           <li>
                             <Link className="dropdown-item" href="/orders">
                               Orders
+                            </Link>
+                          </li>
+                          <li>
+                            <Link className="dropdown-item" href="/address">
+                              Address
                             </Link>
                           </li>
                           <li>
