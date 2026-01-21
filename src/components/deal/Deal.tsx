@@ -1,7 +1,11 @@
 "use client";
+import { useRef } from "react";
 import { Col, Row } from "react-bootstrap";
 import { Swiper, SwiperSlide } from "swiper/react";
+import { Navigation, Autoplay } from "swiper/modules";
+import type { Swiper as SwiperType } from "swiper";
 import "swiper/css";
+import "swiper/css/navigation";
 import ItemCard from "../product-item/ItemCard";
 import { Fade } from "react-awesome-reveal";
 import useSWR from "swr";
@@ -15,6 +19,9 @@ const Deal = ({
   onError = () => {},
 }) => {
   const { data, error } = useSWR("/api/deal", fetcher, { onSuccess, onError });
+  const swiperRef = useRef<SwiperType | null>(null);
+  const prevButtonRef = useRef<HTMLButtonElement>(null);
+  const nextButtonRef = useRef<HTMLButtonElement>(null);
 
   if (error) return <div>Failed to load products</div>;
   if (!data)
@@ -27,6 +34,22 @@ const Deal = ({
   const getData = () => {
     if (hasPaginate) return data.data;
     else return data;
+  };
+
+  const handlePrev = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (swiperRef.current) {
+      swiperRef.current.slidePrev();
+    }
+  };
+
+  const handleNext = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (swiperRef.current) {
+      swiperRef.current.slideNext();
+    }
   };
 
   return (
@@ -62,36 +85,53 @@ const Deal = ({
                   delay={100}
                   className="gi-deal-block m-minus-lr-12"
                 >
-                  <div className="deal-slick-carousel gi-product-slider slick-initialized slick-slider">
-                    <div className="slick-list draggable">
+                  <div className="deal-slick-carousel gi-product-slider slick-initialized slick-slider" style={{ position: "relative" }}>
+                    <div className="slick-list draggable" style={{ position: "relative" }}>
                       <Swiper
+                        onSwiper={(swiper) => {
+                          swiperRef.current = swiper;
+                        }}
+                        modules={[Autoplay]}
                         loop={true}
-                        autoplay={{ delay: 1000 }}
+                        autoplay={{ 
+                          delay: 3000,
+                          disableOnInteraction: false,
+                          pauseOnMouseEnter: true,
+                        }}
                         slidesPerView={5}
+                        spaceBetween={20}
                         breakpoints={{
                           0: {
                             slidesPerView: 1,
+                            spaceBetween: 10,
                           },
                           320: {
                             slidesPerView: 1,
+                            spaceBetween: 10,
                           },
                           425: {
                             slidesPerView: 2,
+                            spaceBetween: 15,
                           },
                           640: {
                             slidesPerView: 2,
+                            spaceBetween: 15,
                           },
                           768: {
                             slidesPerView: 3,
+                            spaceBetween: 20,
                           },
                           1024: {
                             slidesPerView: 3,
+                            spaceBetween: 20,
                           },
                           1200: {
                             slidesPerView: 5,
+                            spaceBetween: 20,
                           },
                           1440: {
                             slidesPerView: 5,
+                            spaceBetween: 20,
                           },
                         }}
                         className="slick-track"
@@ -102,6 +142,91 @@ const Deal = ({
                           </SwiperSlide>
                         ))}
                       </Swiper>
+                      {/* Navigation Buttons */}
+                      <div className="swiper-buttons" style={{ 
+                        position: "absolute", 
+                        top: "50%", 
+                        left: 0,
+                        right: 0,
+                        transform: "translateY(-50%)",
+                        width: "100%",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        pointerEvents: "none",
+                        zIndex: 100,
+                        padding: "0 10px",
+                      }}>
+                        <button 
+                          type="button"
+                          ref={prevButtonRef}
+                          onClick={handlePrev}
+                          style={{
+                            pointerEvents: "auto",
+                            width: "40px",
+                            height: "40px",
+                            borderRadius: "50%",
+                            background: "#fff",
+                            border: "1px solid #e0e0e0",
+                            boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            transition: "all 0.3s ease",
+                            color: "#333",
+                            position: "relative",
+                            zIndex: 101,
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = "#5caf90";
+                            e.currentTarget.style.borderColor = "#5caf90";
+                            e.currentTarget.style.color = "#fff";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = "#fff";
+                            e.currentTarget.style.borderColor = "#e0e0e0";
+                            e.currentTarget.style.color = "#333";
+                          }}
+                          aria-label="Previous slide"
+                        >
+                          <i className="fi-rr-angle-small-left" style={{ fontSize: "20px" }}></i>
+                        </button>
+                        <button 
+                          type="button"
+                          ref={nextButtonRef}
+                          onClick={handleNext}
+                          style={{
+                            pointerEvents: "auto",
+                            width: "40px",
+                            height: "40px",
+                            borderRadius: "50%",
+                            background: "#fff",
+                            border: "1px solid #e0e0e0",
+                            boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            transition: "all 0.3s ease",
+                            color: "#333",
+                            position: "relative",
+                            zIndex: 101,
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = "#5caf90";
+                            e.currentTarget.style.borderColor = "#5caf90";
+                            e.currentTarget.style.color = "#fff";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = "#fff";
+                            e.currentTarget.style.borderColor = "#e0e0e0";
+                            e.currentTarget.style.color = "#333";
+                          }}
+                          aria-label="Next slide"
+                        >
+                          <i className="fi-rr-angle-small-right" style={{ fontSize: "20px" }}></i>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </Fade>
