@@ -12,6 +12,8 @@ import SidebarCart from "../model/SidebarCart";
 
 interface Item {
   id: number;
+  variant_id: number;
+  product_id: number;
   title: string;
   newPrice: number;
   waight: string;
@@ -86,6 +88,9 @@ const ItemCard = ({ data, showAddToCart = false }: any) => {
     }
   };
 
+  useEffect(() => {
+    console.log(data);
+  }, [data]);
   // const isInCompare = (data: Item) => {
   //   return compareItems.some((item: Item) => item.id === data.id);
   // };
@@ -221,11 +226,11 @@ const ItemCard = ({ data, showAddToCart = false }: any) => {
             </div>
           </div>
           <div className="gi-pro-content">
-            <Link href="/shop-left-sidebar-col-3">
+            <Link href={`/product-details/${data.product_id}`}>
               <h6 className="gi-pro-stitle">{data.category}</h6>
             </Link>
             <h5 className="gi-pro-title">
-              <Link href="/product-full-width">{data.title}</Link>
+              <Link href={`/product-details/${data.product_id}`}>{data.title}</Link>
             </h5>
             <p className="gi-info">
               Contrary to popular belief, Lorem Ipsum is not simply random text.
@@ -245,29 +250,15 @@ const ItemCard = ({ data, showAddToCart = false }: any) => {
                     </div>
                     {showAddToCart && (
                       <div className="col-12 d-flex justify-content-center">
-                        {isItemInCart(data.variant_id || data.variant_detail?.id || data.id) ? (
-                          <button
-                            title="Added to cart"
-                            className="gi-btn-group add-to-cart add-to-cart-btn border rounded p-2 w-100 w-sm-auto mt-2 mt-sm-0"
-                            style={{ backgroundColor: '#2e7d32', color: '#fff', opacity: 1, cursor: 'default' }}
-                            onClick={openCart}
-                            disabled={isAddingToCart}
-                          >
-                            <i className="fi-rr-check"></i>
-                            <span className="d-sm-inline"> In your cart</span>
-                          </button>
-                        ) : (
-                          <button
-                            title="Add to cart"
-                            className="gi-btn-group add-to-cart add-to-cart-btn border rounded p-2 w-100 w-sm-auto mt-2 mt-sm-0"
-                            onClick={() => handleCart(data)}
-                            disabled={isAddingToCart}
-                            style={{ backgroundColor: '#5caf90', color: '#fff', opacity: isAddingToCart ? 0.6 : 1 }}
-                          >
-                            <i className="fi-rr-shopping-basket"></i>
-                            <span className="d-sm-inline"> {isAddingToCart ? 'Adding...' : 'Add to cart'}</span>
-                          </button>
-                        )}
+                        <button
+                          title="Quick view"
+                          className="gi-btn-group add-to-cart add-to-cart-btn border rounded p-2 w-100 w-sm-auto mt-2 mt-sm-0"
+                          onClick={handleShow}
+                          style={{ backgroundColor: '#5caf90', color: '#fff', opacity: 1 }}
+                        >
+                          <i className="fi-rr-eye"></i>
+                          <span className="d-sm-inline"> Quick view</span>
+                        </button>
                       </div>
                     )}
                 </div>

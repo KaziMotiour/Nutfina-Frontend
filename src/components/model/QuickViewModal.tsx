@@ -2,14 +2,16 @@ import { useEffect, useState } from "react";
 import Modal from "react-bootstrap/Modal";
 import StarRating from "../stars/StarRating";
 import { useDispatch, useSelector } from "react-redux";
-import { addItem, updateItemQuantity } from "../../store/reducers/cartSlice";
 import { Fade } from "react-awesome-reveal";
 import { Col, Row } from "react-bootstrap";
 import QuantitySelector from "../quantity-selector/QuantitySelector";
-import { RootState } from "../../store";
-import { showSuccessToast } from "../toast-popup/Toastify";
+import { RootState, AppDispatch } from "../../store";
+import { showSuccessToast, showErrorToast } from "../toast-popup/Toastify";
 import ZoomImage from "@/components/zoom-image/ZoomImage";
 import SizeOptions from "../product-item/SizeOptions";
+import { addToCart } from "../../store/reducers/orderSlice";
+import SidebarCart from "./SidebarCart";
+import Link from "next/link";
 
 interface Item {
   id: number;
@@ -38,68 +40,85 @@ interface Option {
 }
 
 const QuickViewModal = ({ show, handleClose, data }) => {
-  const dispatch = useDispatch();
-  const cartItems = useSelector((state: RootState) => state.cart.items);
+  const dispatch = useDispatch<AppDispatch>();
+  const cart = useSelector((state: RootState) => state.order.cart);
+  const cartItems = cart?.items || [];
   const [quantity, setQuantity] = useState(1);
   const [activeIndex, setActiveIndex] = useState(0);
   const [options, setOptions] = useState<Option[]>([]);
   const [oldPrice, setOldPrice] = useState(0);
   const [newPrice, setNewPrice] = useState(0);
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isAddingToCart, setIsAddingToCart] = useState(false);
+  const [selectedVariantId, setSelectedVariantId] = useState<number | null>(null);
+
+  // Check if item is in cart (by variant_id)
+  const isItemInCart = (variantId: number | null) => {
+    if (!variantId) return false;
+    return cartItems.some((item: any) => item.variant === variantId || item.variant_detail?.id === variantId);
+  };
 
   useEffect(() => {
     if (data?.options?.length > 0) {
-      console.log(data?.options);
-
-      setOptions(data?.options?.map((option: any) => ({
+      const mappedOptions = data.options.map((option: any) => ({
         id: option.id,
         value: option.weight, 
         tooltip: option.weight,
         oldPrice: option.oldPrice || 0,
         newPrice: option.newPrice || 0,
-      })));
-      console.log(options);
-    }
-  }, [data?.options]);
-
-  useEffect(() => {
-    setOldPrice(data?.oldPrice);
-    setNewPrice(data?.newPrice);
-  }, [data]);
-
-
-
-  const handleCart = (data: Item) => {
-    const isItemInCart = cartItems.some((item: Item) => item.id === data.id);
-
-    if (!isItemInCart) {
-      dispatch(addItem({ ...data, quantity: quantity }));
-      showSuccessToast("Add product in Cart Successfully!", {
-        icon: false,
-      });
+      }));
+      
+      setOptions(mappedOptions);
+      
+      // Select the first option initially
+      const firstOption = mappedOptions[0];
+      if (firstOption) {
+        setActiveIndex(firstOption.id);
+        setSelectedVariantId(firstOption.id); // Set the selected variant ID
+        setNewPrice(firstOption.newPrice || 0);
+        setOldPrice(firstOption.oldPrice || 0);
+      }
     } else {
-      const updatedCartItems = cartItems.map((item: Item) =>
-        item.id === data.id
-          ? {
-              ...item,
-              quantity: item.quantity + quantity,
-              price: item.newPrice + newPrice,
-            } // Increment quantity and update price
-          : item
-      );
-      dispatch(updateItemQuantity(updatedCartItems));
-      showSuccessToast("Add product in Cart Successfully!", {
-        icon: false,
-      });
+      // If no options, use the default price from data and check if variant_id exists
+      setOldPrice(data?.oldPrice || 0);
+      setNewPrice(data?.newPrice || 0);
+      setSelectedVariantId(data?.variant_id || data?.id || null);
+    }
+  }, [data?.options, data?.oldPrice, data?.newPrice, data?.variant_id, data?.id]);
+
+
+
+  const handleCart = async () => {
+    // Use the selected variant ID
+    const variantId = selectedVariantId;
+    
+    if (!variantId) {
+      showErrorToast("Product variant not found");
+      return;
+    }
+
+    setIsAddingToCart(true);
+    try {
+      await dispatch(addToCart({ variant_id: variantId, quantity: quantity })).unwrap();
+      showSuccessToast("Product added to cart successfully!");
+    } catch (error: any) {
+      showErrorToast(error || "Failed to add product to cart");
+    } finally {
+      setIsAddingToCart(false);
     }
   };
 
   const handleClick = (id: number) => {
     setActiveIndex(id);
+    setSelectedVariantId(id); // Update selected variant ID when weight changes
     const option = options.find((option: any) => option.id === id);
     
     setNewPrice(option?.newPrice || 0);
     setOldPrice(option?.oldPrice || 0);
   };
+
+  const openCart = () => setIsCartOpen(true);
+  const closeCart = () => setIsCartOpen(false);
 
   return (
     <Fade>
@@ -149,6 +168,33 @@ const QuickViewModal = ({ show, handleClose, data }) => {
                       typesetting industry. Lorem Ipsum has been the industry`s
                       standard dummy text ever since the 1900s,
                     </div>
+                    <div style={{ marginTop: "10px", marginBottom: "15px" }}>
+                      <Link 
+                        href={data.slug ? `/products/${data.slug}` : `/product-details/${data.id}`}
+                        onClick={handleClose}
+                        style={{
+                          color: "#5caf90",
+                          textDecoration: "none",
+                          fontSize: "14px",
+                          fontWeight: "500",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "5px",
+                          transition: "color 0.3s ease"
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.color = "#4a9d7a";
+                          e.currentTarget.style.textDecoration = "underline";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.color = "#5caf90";
+                          e.currentTarget.style.textDecoration = "none";
+                        }}
+                      >
+                        View Full Details
+                        <i className="fi-rr-arrow-right" style={{ fontSize: "12px" }}></i>
+                      </Link>
+                    </div>
 
                     <div className="gi-quickview-price">
                       <span className="new-price">
@@ -182,7 +228,19 @@ const QuickViewModal = ({ show, handleClose, data }) => {
                       </div>
                     </div>
                     <div className="gi-quickview-qty">
-                      <div className="qty-plus-minus gi-qty-rtl">
+                      <div 
+                        className="qty-plus-minus gi-qty-rtl"
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          border: "2px solid #5caf90",
+                          borderRadius: "5px",
+                          overflow: "hidden",
+                          backgroundColor: "#fff",
+                          boxShadow: "0 2px 4px rgba(92, 175, 144, 0.2)",
+                          width: "fit-content"
+                        }}
+                      >
                         <QuantitySelector
                           quantity={quantity}
                           id={data.id}
@@ -190,12 +248,26 @@ const QuickViewModal = ({ show, handleClose, data }) => {
                         />
                       </div>
                       <div className="gi-quickview-cart ">
-                        <button
-                          onClick={() => handleCart(data)}
-                          className="gi-btn-1"
-                        >
-                          <i className="fi-rr-shopping-basket"></i> Add To Cart
-                        </button>
+                        {isItemInCart(selectedVariantId) ? (
+                          <button
+                            title="Added to cart"
+                            className="gi-btn-1"
+                            style={{ backgroundColor: '#2e7d32', color: '#fff', opacity: 1, cursor: 'default' }}
+                            onClick={openCart}
+                            disabled={isAddingToCart}
+                          >
+                            <i className="fi-rr-check"></i> In your cart
+                          </button>
+                        ) : (
+                          <button
+                            onClick={handleCart}
+                            className="gi-btn-1"
+                            disabled={isAddingToCart}
+                            style={{ opacity: isAddingToCart ? 0.6 : 1 }}
+                          >
+                            <i className="fi-rr-shopping-basket"></i> {isAddingToCart ? 'Adding...' : 'Add To Cart'}
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -205,6 +277,7 @@ const QuickViewModal = ({ show, handleClose, data }) => {
           </div>
         </div>
       </Modal>
+      <SidebarCart isCartOpen={isCartOpen} closeCart={closeCart} />
     </Fade>
   );
 };
