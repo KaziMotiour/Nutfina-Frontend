@@ -14,10 +14,6 @@ const ShopProductItem = ({
     ? { xl: 12 }
     : { xl: xl, lg: 4, xs: 12, sm: 6, md: 4 };
 
-    useEffect(() => {
-      console.log(data);
-    }, [data]);
-
   return (
     <Col
       {...sizeProps}

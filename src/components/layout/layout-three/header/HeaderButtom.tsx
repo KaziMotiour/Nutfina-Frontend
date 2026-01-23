@@ -44,6 +44,7 @@ const HeaderButtom = ({ cartItems, wishlistItems }) => {
     localStorage.removeItem("login_user");
     dispatch(logout());
     router.push("/");
+    window.location.reload();
   };
 
   const toggleMainMenu = (menuKey: any) => {
@@ -264,6 +265,11 @@ const HeaderButtom = ({ cartItems, wishlistItems }) => {
                           <li>
                             <Link className="dropdown-item" href="/orders">
                               Orders
+                            </Link>
+                          </li>
+                          <li>
+                            <Link className="dropdown-item" href="/address">
+                            Address
                             </Link>
                           </li>
                           <li>
