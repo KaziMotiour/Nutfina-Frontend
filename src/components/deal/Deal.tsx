@@ -77,11 +77,6 @@ const Deal = ({
         }
 
       })
-
-     
-      if(product.name === 'Almond Protein Powder'){
-        console.log(firstVariant);
-      }
       return {
         id: firstVariant?.id || product.id,
         title: product.name,
@@ -161,6 +156,9 @@ const Deal = ({
     }
   };
 
+  // Check if we have enough items for loop mode
+  const hasEnoughItems = transformedProducts.length > 5; // Need more than slidesPerView for loop
+
   return (
     <>
       <section
@@ -201,7 +199,7 @@ const Deal = ({
                           swiperRef.current = swiper;
                         }}
                         modules={[Autoplay]}
-                        loop={true}
+                        loop={hasEnoughItems}
                         autoplay={{ 
                           delay: 3000,
                           disableOnInteraction: false,
@@ -244,98 +242,100 @@ const Deal = ({
                           },
                         }}
                         className="slick-track"
+                        allowTouchMove={true}
+                        grabCursor={true}
                       >
                         {getData()?.map((item: any, index: number) => (
-                          <SwiperSlide key={index} className="slick-slide">
+                          <SwiperSlide key={item.id} className="slick-slide">
                             <ItemCard data={item} />
                           </SwiperSlide>
                         ))}
                       </Swiper>
-                      {/* Navigation Buttons */}
-                      <div className="swiper-buttons" style={{ 
-                        position: "absolute", 
-                        top: "50%", 
-                        left: 0,
-                        right: 0,
-                        transform: "translateY(-50%)",
-                        width: "100%",
-                        display: "flex",
-                        justifyContent: "space-between",
-                        pointerEvents: "none",
-                        zIndex: 100,
-                        padding: "0 10px",
-                      }}>
-                        <button 
-                          type="button"
-                          ref={prevButtonRef}
-                          onClick={handlePrev}
-                          style={{
-                            pointerEvents: "auto",
-                            width: "40px",
-                            height: "40px",
-                            borderRadius: "50%",
-                            background: "#fff",
-                            border: "1px solid #e0e0e0",
-                            boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-                            cursor: "pointer",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            transition: "all 0.3s ease",
-                            color: "#333",
-                            position: "relative",
-                            zIndex: 101,
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.background = "#5caf90";
-                            e.currentTarget.style.borderColor = "#5caf90";
-                            e.currentTarget.style.color = "#fff";
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.background = "#fff";
-                            e.currentTarget.style.borderColor = "#e0e0e0";
-                            e.currentTarget.style.color = "#333";
-                          }}
-                          aria-label="Previous slide"
-                        >
-                          <i className="fi-rr-angle-small-left" style={{ fontSize: "20px" }}></i>
-                        </button>
-                        <button 
-                          type="button"
-                          ref={nextButtonRef}
-                          onClick={handleNext}
-                          style={{
-                            pointerEvents: "auto",
-                            width: "40px",
-                            height: "40px",
-                            borderRadius: "50%",
-                            background: "#fff",
-                            border: "1px solid #e0e0e0",
-                            boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-                            cursor: "pointer",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            transition: "all 0.3s ease",
-                            color: "#333",
-                            position: "relative",
-                            zIndex: 101,
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.background = "#5caf90";
-                            e.currentTarget.style.borderColor = "#5caf90";
-                            e.currentTarget.style.color = "#fff";
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.background = "#fff";
-                            e.currentTarget.style.borderColor = "#e0e0e0";
-                            e.currentTarget.style.color = "#333";
-                          }}
-                          aria-label="Next slide"
-                        >
-                          <i className="fi-rr-angle-small-right" style={{ fontSize: "20px" }}></i>
-                        </button>
-                      </div>
+                    </div>
+                    {/* Navigation Buttons - Moved outside Swiper container */}
+                    <div className="swiper-buttons" style={{ 
+                      position: "absolute", 
+                      top: "50%", 
+                      left: 0,
+                      right: 0,
+                      transform: "translateY(-50%)",
+                      width: "100%",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      pointerEvents: "none",
+                      zIndex: 10,
+                      padding: "0 10px",
+                    }}>
+                      <button 
+                        type="button"
+                        ref={prevButtonRef}
+                        onClick={handlePrev}
+                        style={{
+                          pointerEvents: "auto",
+                          width: "40px",
+                          height: "40px",
+                          borderRadius: "50%",
+                          background: "#fff",
+                          border: "1px solid #e0e0e0",
+                          boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          transition: "all 0.3s ease",
+                          color: "#333",
+                          position: "relative",
+                          zIndex: 11,
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = "#5caf90";
+                          e.currentTarget.style.borderColor = "#5caf90";
+                          e.currentTarget.style.color = "#fff";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = "#fff";
+                          e.currentTarget.style.borderColor = "#e0e0e0";
+                          e.currentTarget.style.color = "#333";
+                        }}
+                        aria-label="Previous slide"
+                      >
+                        <i className="fi-rr-angle-small-left" style={{ fontSize: "20px" }}></i>
+                      </button>
+                      <button 
+                        type="button"
+                        ref={nextButtonRef}
+                        onClick={handleNext}
+                        style={{
+                          pointerEvents: "auto",
+                          width: "40px",
+                          height: "40px",
+                          borderRadius: "50%",
+                          background: "#fff",
+                          border: "1px solid #e0e0e0",
+                          boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          transition: "all 0.3s ease",
+                          color: "#333",
+                          position: "relative",
+                          zIndex: 11,
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = "#5caf90";
+                          e.currentTarget.style.borderColor = "#5caf90";
+                          e.currentTarget.style.color = "#fff";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = "#fff";
+                          e.currentTarget.style.borderColor = "#e0e0e0";
+                          e.currentTarget.style.color = "#333";
+                        }}
+                        aria-label="Next slide"
+                      >
+                        <i className="fi-rr-angle-small-right" style={{ fontSize: "20px" }}></i>
+                      </button>
                     </div>
                   </div>
                 </Fade>

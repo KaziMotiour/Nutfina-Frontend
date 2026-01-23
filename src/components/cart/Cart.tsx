@@ -5,25 +5,12 @@ import ItemCard from "../product-item/ItemCard";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState, AppDispatch } from "../../store";
 import { getCart, removeFromCart, updateCartItem, CartItem as BackendCartItem } from "../../store/reducers/orderSlice";
+import { getProducts, Product } from "../../store/reducers/shopSlice";
 import { Fade } from "react-awesome-reveal";
-import useSWR from "swr";
-import fetcher from "../fetcher-api/Fetcher";
 import Spinner from "../button/Spinner";
-import DiscountCoupon from "../discount-coupon/DiscountCoupon";
 import QuantitySelector from "../quantity-selector/QuantitySelector";
 import Link from "next/link";
-
-interface Country {
-  id: string;
-  name: any;
-  iso2: string;
-}
-
-interface State {
-  id: string;
-  name: any;
-  state_code: string;
-}
+import { API_BASE_URL } from "../../utils/api";
 
 const Cart = ({
   onSuccess = () => {},
@@ -33,17 +20,79 @@ const Cart = ({
   const dispatch = useDispatch<AppDispatch>();
   const cart = useSelector((state: RootState) => state.order.cart);
   const cartLoading = useSelector((state: RootState) => state.order.loading);
-  const [filteredCountryData, setFilteredCountryData] = useState<Country[]>([]);
-  const [filteredStateData, setFilteredStateData] = useState<State[]>([]);
-  const [loadingStates, setLoadingStates] = useState(false);
-  const [subTotal, setSubTotal] = useState(0);
-  const [vat, setVat] = useState(0);
-  const [discount, setDiscount] = useState(0);
+  const { products, loading: productsLoading } = useSelector((state: RootState) => state.shop);
+
+  // Helper function to get backend base URL (without /api)
+  const getBackendBaseUrl = () => {
+    const apiUrl = API_BASE_URL || "http://localhost:8000/api";
+    // Remove /api from the end if present
+    return apiUrl.replace(/\/api$/, "");
+  };
+
+  // Helper function to construct full image URL
+  const getImageUrl = (imagePath: string | null | undefined): string => {
+    if (!imagePath) return "/assets/img/common/placeholder.png";
+    
+    // If already a full URL (starts with http:// or https://), return as is
+    if (imagePath.startsWith("http://") || imagePath.startsWith("https://")) {
+      return imagePath;
+    }
+    
+    // If it's a relative path starting with /, prepend backend base URL
+    if (imagePath.startsWith("/")) {
+      return `${getBackendBaseUrl()}${imagePath}`;
+    }
+    
+    // Otherwise, assume it's a relative path and prepend backend base URL with /
+    return `${getBackendBaseUrl()}/${imagePath}`;
+  };
 
   // Fetch cart on mount
   useEffect(() => {
     dispatch(getCart());
   }, [dispatch]);
+
+  // Fetch related products based on cart items' categories
+  useEffect(() => {
+    if (cart && cart.items && cart.items.length > 0) {
+      // Get unique categories from cart items
+      const categories = new Set<number>();
+      cart.items.forEach((item: BackendCartItem) => {
+        const product = (item as any).product_detail;
+        if (product && product.category) {
+          const categoryId = typeof product.category === 'object' ? product.category.id : product.category;
+          if (categoryId) {
+            categories.add(categoryId);
+          }
+        }
+      });
+
+      // Get cart item product IDs to exclude them from related products
+      const cartProductIds = new Set(
+        cart.items.map((item: BackendCartItem) => {
+          const product = (item as any).product_detail;
+          return product?.id;
+        }).filter(Boolean)
+      );
+
+      // Fetch products from the same categories, excluding cart items
+      if (categories.size > 0) {
+        const categoryArray = Array.from(categories);
+        // Fetch products from the first category (or you could fetch from all)
+        dispatch(getProducts({ 
+          category: categoryArray[0], 
+          is_active: true,
+          page: 1
+        }));
+      } else {
+        // If no categories, fetch featured products
+        dispatch(getProducts({ is_featured: true, is_active: true }));
+      }
+    } else {
+      // If cart is empty, show featured products
+      dispatch(getProducts({ is_featured: true, is_active: true }));
+    }
+  }, [cart, dispatch]);
 
   // Transform backend cart items to component format
   const cartItems = useMemo(() => {
@@ -62,8 +111,9 @@ const Cart = ({
       // Get product name - prefer product name, fallback to variant name
       const title = product.name || variant.name || "Product";
 
-      // Get image URL
-      const imageUrl = firstImage.image || firstImage.image_url || "/assets/img/common/placeholder.png";
+      // Get image URL - check multiple possible fields and construct full URL
+      const imagePath = firstImage.image || firstImage.image_url || firstImage.url;
+      const imageUrl = getImageUrl(imagePath);
 
       return {
         id: item.id,
@@ -77,64 +127,6 @@ const Cart = ({
     });
   }, [cart]);
 
-  const { data: country } = useSWR("/api/country", fetcher, {
-    onSuccess,
-    onError,
-  });
-
-  useEffect(() => {
-    if (country) {
-      setFilteredCountryData(
-        country.map((country: any) => ({
-          id: country.id,
-          countryName: country.name,
-          iso2: country.iso2,
-        }))
-      );
-    }
-  }, [country]);
-
-  const handleCountryChange = async (e: any) => {
-    const { value } = e.target;
-    setLoadingStates(true);
-    const response = await fetcher(`/api/state`, {
-      country_code: value,
-    });
-    setLoadingStates(false);
-    setFilteredStateData(
-      response.map((state: any) => ({
-        id: state.id,
-        StateName: state.name,
-        state_code: state.state_code,
-      }))
-    );
-  };
-
-  const handleStateChange = async (e: any) => {
-    const { value, options, selectedIndex } = e.target;
-    const stateName = options[selectedIndex].text;
-  };
-
-  // Update subtotal and VAT from backend cart
-  useEffect(() => {
-    if (cart) {
-      const subtotal = parseFloat(cart.subtotal || "0");
-      setSubTotal(subtotal);
-      // Calculate VAT (20%)
-      const vatAmount = subtotal * 0.2;
-      setVat(vatAmount);
-    } else {
-      setSubTotal(0);
-      setVat(0);
-    }
-  }, [cart]);
-
-  const handleDiscountApplied = (discount) => {
-    setDiscount(discount);
-  };
-
-  const discountAmount = subTotal * (discount / 100);
-  const total = subTotal + vat - discountAmount;
 
   const handleRemoveFromCart = async (item: any) => {
     try {
@@ -158,13 +150,114 @@ const Cart = ({
     }
   };
 
-  const { data, error } = useSWR("/api/deal", fetcher, { onSuccess, onError });
+  // Transform backend products to ItemCard format and exclude cart items
+  const relatedProducts = useMemo(() => {
+    if (!products || products.length === 0) return [];
 
-  const getData = () => {
-    if (!data) return [];
-    if (hasPaginate) return data.data;
-    else return data;
-  };
+    // Get cart product IDs and variant IDs to exclude
+    const cartProductIds = new Set<number>();
+    const cartVariantIds = new Set<number>();
+    
+    if (cart?.items && cart.items.length > 0) {
+      cart.items.forEach((item: BackendCartItem) => {
+        const product = (item as any).product_detail;
+        const variant = (item as any).variant_detail;
+        
+        // Add product ID if available
+        if (product?.id) {
+          cartProductIds.add(product.id);
+        }
+        
+        // Add variant ID if available
+        if (variant?.id) {
+          cartVariantIds.add(variant.id);
+        }
+        
+        // Also check if variant has product reference
+        if (variant?.product) {
+          const variantProductId = typeof variant.product === 'object' ? variant.product.id : variant.product;
+          if (variantProductId) {
+            cartProductIds.add(variantProductId);
+          }
+        }
+      });
+    }
+
+    // Filter out products that are already in cart
+    // Check both product ID and if any of its variants are in cart
+    const filteredProducts = products.filter((product: Product) => {
+      // Exclude if product ID is in cart
+      if (cartProductIds.has(product.id)) {
+        return false;
+      }
+      
+      // Exclude if any variant of this product is in cart
+      if (product.variants && product.variants.length > 0) {
+        const hasVariantInCart = product.variants.some((variant: any) => {
+          const variantId = typeof variant === 'object' ? variant.id : variant;
+          return cartVariantIds.has(variantId);
+        });
+        if (hasVariantInCart) {
+          return false;
+        }
+      }
+      
+      return true;
+    });
+
+    // Transform and limit to 10 products
+    return filteredProducts
+      .slice(0, 10)
+      .map((product: Product) => {
+        // Get the first variant (preferably featured) or use base price
+        const firstVariant = product.variants && product.variants.length > 0 
+          ? product.variants[0] 
+          : null;
+        
+        // Get images - prefer variant images, fallback to product images
+        const images = firstVariant?.images && firstVariant.images.length > 0
+          ? firstVariant.images
+          : firstVariant?.product_images && firstVariant.product_images.length > 0
+          ? firstVariant.product_images
+          : product.images || [];
+
+        const firstImage = images.find((img: any) => img.is_active) || images[0];
+        const secondImage = images.find((img: any, idx: number) => idx === 1 && img.is_active) || images[1] || firstImage;
+
+        const price = firstVariant ? parseFloat(firstVariant.final_price) : parseFloat(product.base_price);
+        const oldPrice = firstVariant && firstVariant.on_sale 
+          ? parseFloat(firstVariant.price) 
+          : null;
+
+        // Get image URL
+        const getImageUrl = (img: any) => {
+          if (!img) return "/assets/img/common/placeholder.png";
+          const imagePath = img.image || img.image_url || img.url;
+          if (!imagePath) return "/assets/img/common/placeholder.png";
+          
+          if (imagePath.startsWith("http://") || imagePath.startsWith("https://")) {
+            return imagePath;
+          }
+          
+          const backendBaseUrl = (API_BASE_URL || "http://localhost:8000/api").replace(/\/api$/, "");
+          if (imagePath.startsWith("/")) {
+            return `${backendBaseUrl}${imagePath}`;
+          }
+          return `${backendBaseUrl}/${imagePath}`;
+        };
+
+        return {
+          id: product.id,
+          title: product.name,
+          slug: product.slug,
+          image: getImageUrl(firstImage),
+          image2: getImageUrl(secondImage),
+          newPrice: price,
+          oldPrice: oldPrice,
+          category: product.category_name || 'Uncategorized',
+        };
+      });
+  }, [products, cart]);
 
   return (
     <>
@@ -188,188 +281,109 @@ const Cart = ({
               Add item in a cart.
             </div>
           ) : (
-            <div className="row">
-              {/* <!-- Sidebar Area Start --> */}
-              <div className="gi-cart-rightside col-lg-4 col-md-12">
-                <div className="gi-sidebar-wrap">
-                  {/* <!-- Sidebar Summary Block --> */}
-                  <div className="gi-sidebar-block">
-                    <div className="gi-sb-title">
-                      <h3 className="gi-sidebar-title">Summary</h3>
-                    </div>
-                    <div className="gi-sb-block-content">
-                      <h4 className="gi-ship-title">Estimate Shipping</h4>
-                      <div className="gi-cart-form">
-                        <p>Enter your destination to get a shipping estimate</p>
-                        <form action="#" method="post">
-                          <span className="gi-cart-wrap">
-                            <label>Country *</label>
-                            <span className="gi-cart-select-inner">
-                              <select
-                                name="gi_cart_country"
-                                id="gi-cart-select-country"
-                                className="gi-cart-select"
-                                defaultValue=""
-                                onChange={handleCountryChange}
-                              >
-                                <option value="" disabled>
-                                  Country
-                                </option>
-                                {filteredCountryData.map(
-                                  (country: any, index: number) => (
-                                    <option key={index} value={country.iso2}>
-                                      {country.countryName}
-                                    </option>
-                                  )
-                                )}
-                              </select>
-                            </span>
-                          </span>
-                          <span className="gi-cart-wrap">
-                            <label>State/Province</label>
-                            <span className="gi-cart-select-inner">
-                              <select
-                                name="state"
-                                id="gi-select-state"
-                                className="gi-register-select"
-                                onChange={handleStateChange}
-                              >
-                                <option value="" disabled>
-                                  Region/State
-                                </option>
-                                {loadingStates ? (
-                                  <option disabled>Loading...</option>
-                                ) : (
-                                  filteredStateData.map((state: any, index) => (
-                                    <option
-                                      key={index}
-                                      value={state.state_code}
-                                    >
-                                      {state.StateName}
-                                    </option>
-                                  ))
-                                )}
-                              </select>
-                            </span>
-                          </span>
-                          <span className="gi-cart-wrap">
-                            <label>Zip/Postal Code</label>
-                            <input
-                              type="text"
-                              name="postalcode"
-                              placeholder="Zip/Postal Code"
-                            />
-                          </span>
-                        </form>
-                      </div>
-                    </div>
-
-                    <div className="gi-sb-block-content">
-                      <div className="gi-cart-summary-bottom">
-                        <div className="gi-cart-summary">
-                          <div>
-                            <span className="text-left">Sub-Total</span>
-                            <span className="text-right">
-                              ${subTotal.toFixed(2)}
-                            </span>
-                          </div>
-                          <div>
-                            <span className="text-left">Delivery Charges</span>
-                            <span className="text-right">
-                              ${vat.toFixed(2)}
-                            </span>
-                          </div>
-                          <div>
-                            <DiscountCoupon
-                              onDiscountApplied={handleDiscountApplied}
-                            />
-                          </div>
-                          <div className="gi-cart-coupan-content">
-                            <form
-                              className="gi-cart-coupan-form"
-                              name="gi-cart-coupan-form"
-                              method="post"
-                              action="#"
-                            >
-                              <input
-                                className="gi-coupan"
-                                type="text"
-                                required
-                                placeholder="Enter Your Coupan Code"
-                                name="gi-coupan"
-                                defaultValue=""
-                              />
-                              <button
-                                className="gi-btn-2"
-                                type="submit"
-                                name="subscribe"
-                                defaultValue=""
-                              >
-                                Apply
-                              </button>
-                            </form>
-                          </div>
-                          <div className="gi-cart-summary-total">
-                            <span className="text-left">Total Amount</span>
-                            <span className="text-right">
-                              ${total.toFixed(2)}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="gi-cart-leftside col-lg-8 col-md-12 m-t-991">
+            <div className="row justify-content-center">
+              <div className="gi-cart-leftside col-lg-10 col-md-12">
                 {/* <!-- cart content Start --> */}
-                <div className="gi-cart-content">
+                <div className="gi-cart-content" style={{ backgroundColor: "#fff", borderRadius: "8px", padding: "30px", boxShadow: "0 2px 8px rgba(0,0,0,0.08)" }}>
                   <div className="gi-cart-inner">
                     <div className="row">
                       <form action="#">
-                        <div className="table-content cart-table-content">
-                          <table>
-                            <thead>
+                        <div className="table-content cart-table-content" style={{ overflowX: "auto" }}>
+                          <table className="table gi-table" style={{ marginBottom: 0, width: "100%" }}>
+                            <thead style={{ backgroundColor: "#f8f9fa" }}>
                               <tr>
-                                <th>Product</th>
-                                <th>Price</th>
-                                <th style={{ textAlign: "center" }}>
+                                <th scope="col" style={{ padding: "20px 15px", fontWeight: "600", color: "#333", borderBottom: "2px solid #dee2e6", fontSize: "16px" }}>
+                                  Product
+                                </th>
+                                <th scope="col" style={{ padding: "20px 15px", fontWeight: "600", color: "#333", borderBottom: "2px solid #dee2e6", textAlign: "center", fontSize: "16px" }}>
+                                  Price
+                                </th>
+                                <th scope="col" style={{ padding: "20px 15px", fontWeight: "600", color: "#333", borderBottom: "2px solid #dee2e6", textAlign: "center", fontSize: "16px" }}>
                                   Quantity
                                 </th>
-                                <th>Total</th>
-                                <th>Action</th>
+                                <th scope="col" style={{ padding: "20px 15px", fontWeight: "600", color: "#333", borderBottom: "2px solid #dee2e6", textAlign: "right", fontSize: "16px" }}>
+                                  Total
+                                </th>
+                                <th scope="col" style={{ padding: "20px 15px", fontWeight: "600", color: "#333", borderBottom: "2px solid #dee2e6", textAlign: "center", fontSize: "16px" }}>
+                                  Action
+                                </th>
                               </tr>
                             </thead>
                             <tbody>
                               {cartItems.map((item: any, index: number) => (
-                                <tr key={index}>
+                                <tr 
+                                  key={index}
+                                  style={{ 
+                                    borderBottom: "1px solid #e9ecef",
+                                    transition: "background-color 0.2s ease"
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.backgroundColor = "#f8f9fa";
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.backgroundColor = "transparent";
+                                  }}
+                                >
                                   <td
                                     data-label="Product"
                                     className="gi-cart-pro-name"
+                                    style={{ padding: "20px 15px", verticalAlign: "middle" }}
                                   >
-                                    <a href="/product-left-sidebar">
-                                      <img
-                                        className="gi-cart-pro-img mr-4"
-                                        src={item.image}
-                                        alt=""
-                                      />
-                                      {item.title}
-                                    </a>
+                                    <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
+                                      <a 
+                                        href="/product-left-sidebar"
+                                        style={{ 
+                                          display: "flex", 
+                                          alignItems: "center", 
+                                          gap: "15px",
+                                          textDecoration: "none",
+                                          color: "#333"
+                                        }}
+                                      >
+                                        <img
+                                          className="gi-cart-pro-img"
+                                          src={item.image}
+                                          alt={item.title}
+                                          style={{
+                                            width: "80px",
+                                            height: "80px",
+                                            objectFit: "cover",
+                                            borderRadius: "8px",
+                                            border: "1px solid #e9ecef"
+                                          }}
+                                        />
+                                        <span style={{ fontWeight: "500", fontSize: "15px" }}>
+                                          {item.title}
+                                        </span>
+                                      </a>
+                                    </div>
                                   </td>
                                   <td
                                     data-label="Price"
                                     className="gi-cart-pro-price"
+                                    style={{ padding: "20px 15px", textAlign: "center", verticalAlign: "middle" }}
                                   >
-                                    <span className="amount">
-                                      ${item.newPrice}
+                                    <span className="amount" style={{ fontWeight: "500", color: "#333", fontSize: "15px" }}>
+                                      {item.newPrice.toFixed(2)} BDT
                                     </span>
                                   </td>
                                   <td
                                     data-label="Quantity"
                                     className="gi-cart-pro-qty"
-                                    style={{ textAlign: "center" }}
+                                    style={{ padding: "20px 15px", textAlign: "center", verticalAlign: "middle" }}
                                   >
-                                    <div className="cart-qty-plus-minus">
+                                    <div 
+                                      className="cart-qty-plus-minus qty-plus-minus" 
+                                      style={{ 
+                                        display: "inline-flex", 
+                                        alignItems: "center", 
+                                        justifyContent: "center",
+                                        border: "1px solid #dee2e6",
+                                        borderRadius: "5px",
+                                        overflow: "hidden",
+                                        backgroundColor: "#fff"
+                                      }}
+                                    >
                                       <QuantitySelector
                                         quantity={item.quantity}
                                         id={item.id}
@@ -380,16 +394,46 @@ const Cart = ({
                                   <td
                                     data-label="Total"
                                     className="gi-cart-pro-subtotal"
+                                    style={{ padding: "20px 15px", textAlign: "right", verticalAlign: "middle" }}
                                   >
-                                    ${item.line_total.toFixed(2)}
+                                    <span style={{ fontWeight: "600", color: "#333", fontSize: "16px" }}>
+                                      {item.line_total.toFixed(2)} BDT
+                                    </span>
                                   </td>
                                   <td
                                     onClick={() => handleRemoveFromCart(item)}
                                     data-label="Remove"
                                     className="gi-cart-pro-remove"
+                                    style={{ padding: "20px 15px", textAlign: "center", verticalAlign: "middle", cursor: "pointer" }}
                                   >
-                                    <a href="#">
-                                      <i className="gicon gi-trash-o"></i>
+                                    <a 
+                                      href="#"
+                                      onClick={(e) => e.preventDefault()}
+                                      style={{
+                                        display: "inline-block",
+                                        width: "40px",
+                                        height: "40px",
+                                        lineHeight: "40px",
+                                        textAlign: "center",
+                                        borderRadius: "50%",
+                                        backgroundColor: "#fff",
+                                        border: "1px solid #e9ecef",
+                                        color: "#dc3545",
+                                        transition: "all 0.3s ease",
+                                        textDecoration: "none"
+                                      }}
+                                      onMouseEnter={(e) => {
+                                        e.currentTarget.style.backgroundColor = "#dc3545";
+                                        e.currentTarget.style.color = "#fff";
+                                        e.currentTarget.style.borderColor = "#dc3545";
+                                      }}
+                                      onMouseLeave={(e) => {
+                                        e.currentTarget.style.backgroundColor = "#fff";
+                                        e.currentTarget.style.color = "#dc3545";
+                                        e.currentTarget.style.borderColor = "#e9ecef";
+                                      }}
+                                    >
+                                      <i className="gicon gi-trash-o" style={{ fontSize: "16px" }}></i>
                                     </a>
                                   </td>
                                 </tr>
@@ -397,11 +441,45 @@ const Cart = ({
                             </tbody>
                           </table>
                         </div>
-                        <div className="row">
+                        <div className="row" style={{ marginTop: "30px" }}>
                           <div className="col-lg-12">
-                            <div className="gi-cart-update-bottom">
-                              <Link href="/">Continue Shopping</Link>
-                              <Link href="/checkout" className="gi-btn-2">
+                            <div className="gi-cart-update-bottom" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "15px" }}>
+                              <Link 
+                                href="/"
+                                style={{
+                                  padding: "12px 30px",
+                                  backgroundColor: "#f8f9fa",
+                                  color: "#333",
+                                  textDecoration: "none",
+                                  borderRadius: "5px",
+                                  fontWeight: "500",
+                                  transition: "all 0.3s ease",
+                                  border: "1px solid #e9ecef",
+                                  display: "inline-block"
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.backgroundColor = "#e9ecef";
+                                  e.currentTarget.style.borderColor = "#dee2e6";
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.backgroundColor = "#f8f9fa";
+                                  e.currentTarget.style.borderColor = "#e9ecef";
+                                }}
+                              >
+                                Continue Shopping
+                              </Link>
+                              <Link 
+                                href="/checkout" 
+                                className="gi-btn-2"
+                                style={{
+                                  padding: "12px 30px",
+                                  textDecoration: "none",
+                                  borderRadius: "5px",
+                                  fontWeight: "500",
+                                  transition: "all 0.3s ease",
+                                  display: "inline-block"
+                                }}
+                              >
                                 Check Out
                               </Link>
                             </div>
@@ -434,9 +512,9 @@ const Cart = ({
                 >
                   <>
                     <h2 className="gi-title">
-                      New <span>Arrivals</span>
+                      You May <span>Like</span>
                     </h2>
-                    <p>Browse The Collection of Top Products</p>
+                    <p>Discover More Products You Might Enjoy</p>
                   </>
                 </Fade>
                 <Fade
@@ -479,11 +557,21 @@ const Cart = ({
                     }}
                     className="deal-slick-carousel gi-product-slider"
                   >
-                    {getData().map((item: any, index: number) => (
-                      <SwiperSlide key={index}>
-                        <ItemCard data={item} />
-                      </SwiperSlide>
-                    ))}
+                    {productsLoading ? (
+                      <div style={{ textAlign: "center", padding: "40px", width: "100%" }}>
+                        <Spinner />
+                      </div>
+                    ) : relatedProducts.length > 0 ? (
+                      relatedProducts.map((item: any, index: number) => (
+                        <SwiperSlide key={item.id || index}>
+                          <ItemCard data={item} />
+                        </SwiperSlide>
+                      ))
+                    ) : (
+                      <div style={{ textAlign: "center", padding: "40px", width: "100%" }}>
+                        <p>No related products available</p>
+                      </div>
+                    )}
                   </Swiper>
                 </Fade>
               </div>

@@ -150,7 +150,6 @@ export const addToCart = createAsyncThunk(
         method: "POST",
         body: JSON.stringify(data),
       });
-      console.log(response);
       return response; // Returns full cart
     } catch (error: any) {
       return rejectWithValue(error.message || "Failed to add to cart");

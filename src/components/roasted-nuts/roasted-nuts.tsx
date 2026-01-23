@@ -6,7 +6,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "@/store";
-import { getCategory, getProducts, Product, ProductVariant } from "@/store/reducers/shopSlice";
+import { getCategory, getProducts, clearProducts, Product, ProductVariant } from "@/store/reducers/shopSlice";
 import ItemCard from "../product-item/ItemCard";
 
 const RoastedNuts = () => {
@@ -28,6 +28,8 @@ const RoastedNuts = () => {
     // Fetch products when category is loaded
     useEffect(() => {
         if (currentCategory && currentCategory.id) {
+            // Clear existing products to avoid showing products from other categories
+            dispatch(clearProducts());
             dispatch(getProducts({ 
                 category: currentCategory.id, 
                 is_active: true 
@@ -42,25 +44,38 @@ const RoastedNuts = () => {
     // Transform backend product data to ItemCard format
     const transformedProducts = useMemo(() => {
         if (!products || products.length === 0) return [];
+        if (!currentCategory || !currentCategory.id) return [];
 
-        return products.map((product: Product) => {
-            // Get the first variant (preferably featured) or use base price
-            const firstVariant = product.variants && product.variants.length > 0 
-                ? product.variants[0] 
-                : null;
+        // Filter products to only include those from the roasted nuts category
+        // This is a safety measure in case other components have fetched products
+        const filteredProducts = products.filter((product: Product) => {
+            const productCategoryId = typeof product.category === 'object' 
+                ? product.category.id 
+                : product.category;
+            return productCategoryId === currentCategory.id;
+        });
+
+        // Filter out products that don't have variants
+        const productsWithVariants = filteredProducts.filter((product: Product) => {
+            return product.variants && product.variants.length > 0;
+        });
+
+        return productsWithVariants.map((product: Product) => {
+            // Get the first variant (guaranteed to exist since we filtered)
+            const firstVariant = product.variants![0];
             
             // Get images - prefer variant images, fallback to product images
-            const images = firstVariant?.images && firstVariant.images.length > 0
+            const images = firstVariant.images && firstVariant.images.length > 0
                 ? firstVariant.images
-                : firstVariant?.product_images && firstVariant.product_images.length > 0
+                : firstVariant.product_images && firstVariant.product_images.length > 0
                 ? firstVariant.product_images
                 : product.images || [];
 
             const firstImage = images.find((img: any) => img.is_active) || images[0];
             const secondImage = images.find((img: any, idx: number) => idx === 1 && img.is_active) || images[1] || firstImage;
 
-            const price = firstVariant ? parseFloat(firstVariant.final_price) : parseFloat(product.base_price);
-            const oldPrice = firstVariant && firstVariant.on_sale 
+            const price = parseFloat(firstVariant.final_price);
+            const oldPrice = firstVariant.on_sale 
                 ? parseFloat(firstVariant.price) 
                 : null;
 
@@ -87,31 +102,37 @@ const RoastedNuts = () => {
             });
 
             return {
-                id: firstVariant?.id || product.id,
+                id: firstVariant.id, // Use variant ID (guaranteed to exist since we filtered)
+                variant_id: firstVariant.id, // Explicitly set variant_id for cart
+                product_id: product.id, // Keep product ID for reference
                 title: product.name,
                 newPrice: price,
                 oldPrice: oldPrice || price,
-                sale: firstVariant?.on_sale ? "Sale" : "",
+                sale: firstVariant.on_sale ? "Sale" : "",
                 image: getImageUrl(firstImage),
                 imageTwo: getImageUrl(secondImage),
                 category: categoryName,
-                status: firstVariant?.is_active ? "Available" : "Out of Stock",
+                status: firstVariant.is_active ? "Available" : "Out of Stock",
                 rating: 5, // Default rating, can be added to backend later
-                weight: firstVariant?.weight_grams 
-                    ? `${(firstVariant.weight_grams / 1000).toFixed(1)}kg` 
+                weight: firstVariant.weight_grams 
+                    ? (firstVariant.weight_grams < 1000 
+                        ? `${firstVariant.weight_grams}g` 
+                        : `${(firstVariant.weight_grams / 1000).toFixed(1)}kg`)
                     : "N/A",
-                sku: firstVariant?.sku || product.id,
+                sku: firstVariant.sku,
                 quantity: 1,
                 date: product.created,
                 location: "Bangladesh",
                 brand: categoryName,
-                waight: firstVariant?.weight_grams 
-                    ? `${(firstVariant.weight_grams / 1000).toFixed(1)}kg` 
+                waight: firstVariant.weight_grams 
+                    ? (firstVariant.weight_grams < 1000 
+                        ? `${firstVariant.weight_grams}g` 
+                        : `${(firstVariant.weight_grams / 1000).toFixed(1)}kg`)
                     : "N/A",
                 options: options,
             };
         });
-    }, [products]);
+    }, [products, currentCategory]);
 
     if (error) return <div>Failed to load products</div>;
     if (loading || !products)
@@ -144,7 +165,7 @@ const RoastedNuts = () => {
                                 </div>
                             </div>
                             {/* <!-- Tab Start --> */}
-                            <TabList className="gi-pro-tab">
+                            {/* <TabList className="gi-pro-tab">
                                 <ul className="gi-pro-tab-nav nav">
                                     <Tab
                                         style={{ outline: "none" }}
@@ -163,7 +184,7 @@ const RoastedNuts = () => {
                                         </a>
                                     </Tab>
                                 </ul>
-                            </TabList>
+                            </TabList> */}
                             {/* <!-- Tab End --> */}
                         </div>
                         {/* <!-- New Product --> */}
@@ -194,7 +215,7 @@ const RoastedNuts = () => {
                                                             lg={3}
                                                             xl={2}
                                                             className="col-sm-6 gi-product-box gi-col-4"
-                                                        >
+                                                        >   
                                                             <ItemCard data={item} showAddToCart={true} />
                                                         </Col>
                                                     ))
