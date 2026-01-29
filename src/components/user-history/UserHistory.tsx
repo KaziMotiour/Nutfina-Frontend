@@ -48,11 +48,11 @@ const UserHistory = () => {
       refunded: "out",
       completed: "avl",
     };
-    return statusMap[status.toLowerCase()] || "out";
+    return statusMap[status?.toLowerCase()] || "out";
   };
 
   const getStatusLabel = (status: string) => {
-    return status.charAt(0).toUpperCase() + status.slice(1);
+    return status?.charAt(0).toUpperCase() + status?.slice(1);
   };
 
   const getTotalItemCount = (order: Order) => {

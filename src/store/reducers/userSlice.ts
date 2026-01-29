@@ -229,7 +229,7 @@ export const updateAddress = createAsyncThunk(
   "user/updateAddress",
   async ({ id, data }: { id: number; data: Partial<Address> }, { rejectWithValue }) => {
     try {
-      const response = await apiCall(`/auth/address/${id}/`, {
+      const response = await apiCall(`/auth/address/${id}/update/`, {
         method: "PATCH",
         body: JSON.stringify(data),
       });
@@ -244,7 +244,7 @@ export const deleteAddress = createAsyncThunk(
   "user/deleteAddress",
   async (id: number, { rejectWithValue }) => {
     try {
-      await apiCall(`/user/address/${id}/`, {
+      await apiCall(`/auth/address/${id}/delete/`, {
         method: "DELETE",
       });
       return id;

@@ -11,6 +11,11 @@ const vendordeshboard: vendor[] = [
     slug: "user-profile"
   },
   {
+    name: "User Address",
+    href: "/address",
+    slug: "user-address"
+  },
+  {
     name: "User History",
     href: "/user-history",
     slug: "user-history"

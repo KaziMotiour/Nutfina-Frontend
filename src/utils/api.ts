@@ -29,7 +29,6 @@ const isTokenExpired = (token: string | null): boolean => {
   try {
     const payload = JSON.parse(atob(token.split('.')[1]));
     const exp = payload.exp * 1000; // Convert to milliseconds
-    console.log(exp, "exp");
     return Date.now() >= exp;
   } catch (error) {
     return true; // If we can't decode, consider it expired
@@ -147,6 +146,10 @@ export const apiCall = async (url: string, options: RequestInit = {}, retry = tr
             throw new Error(error.detail || error.message || "Request failed");
           }
 
+          if (response.status === 204) {
+            return response;
+          }
+
           return response.json();
         }
       } catch (refreshError: any) {
@@ -192,6 +195,10 @@ export const apiCall = async (url: string, options: RequestInit = {}, retry = tr
                     throw new Error(error.detail || error.message || "Request failed");
                 }
 
+                if (retryResponse.status === 204) {
+                    return retryResponse;
+                }
+
                 return retryResponse.json();
             }
         } catch (refreshError: any) {
@@ -204,6 +211,10 @@ export const apiCall = async (url: string, options: RequestInit = {}, retry = tr
     if (!response.ok) {
         const error = await response.json().catch(() => ({ detail: "An error occurred" }));
         throw new Error(error.detail || error.message || "Request failed");
+    }
+
+    if (response.status === 204) {
+        return response;
     }
 
     return response.json();
