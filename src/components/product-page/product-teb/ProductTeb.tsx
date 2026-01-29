@@ -2,9 +2,12 @@ import React, { useEffect, useState } from "react";
 import { Tab, TabList, Tabs } from "react-tabs";
 import { Fade } from "react-awesome-reveal";
 import RatingComponent from "@/components/stars/RatingCompoents";
-import { useSelector } from "react-redux";
-import { RootState } from "@/store";
+import { useSelector, useDispatch } from "react-redux";
+import { RootState, AppDispatch } from "@/store";
 import { Form } from "react-bootstrap";
+import { apiCall } from "@/utils/api";
+import { showSuccessToast, showErrorToast } from "@/components/toast-popup/Toastify";
+import Spinner from "@/components/button/Spinner";
 
 export interface RegistrationData {
   firstName: string;
@@ -29,62 +32,127 @@ const getRegistrationData = () => {
 };
 
 const ProductTeb = () => {
+  const dispatch = useDispatch<AppDispatch>();
   const login = useSelector(
-    (state: RootState) => state.registration.isAuthenticated
+    (state: RootState) => state.user?.isAuthenticated ?? false
   );
+  const user = useSelector((state: RootState) => state.user?.user);
+  const { currentProduct } = useSelector((state: RootState) => state.shop);
+  
   const [userData, setUserData] = useState<any | null>(null);
   const [validated, setValidated] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [comment, setComment] = useState("");
   const [rating, setRating] = useState(0);
-  const [reviews, setReviews] = useState([
-    {
-      name: "Moris Willson",
-      rating: 3,
-      comment:
-        "Lorem Ipsum has been the industry's standard dummy text ever since the 1500s...",
-      avatar: "/assets/img/avatar/placeholder.jpg",
-    },
-  ]);
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (login) {
-      const data = getRegistrationData();
-      if (data?.length > 0) {
-        setUserData(data[data.length - 1]);
-      }
+    if (login && user) {
+      setUserData({
+        firstName: user.full_name?.split(' ')[0] || '',
+        lastName: user.full_name?.split(' ').slice(1).join(' ') || '',
+        email: user.email,
+        profilePhoto: user.avatar_url || user.avatar || null,
+      });
     }
-  }, [login]);
+  }, [login, user]);
+
+  // Fetch reviews when product changes
+  useEffect(() => {
+    if (currentProduct?.id) {
+      fetchReviews();
+    }
+  }, [currentProduct?.id]);
+
+  const fetchReviews = async () => {
+    if (!currentProduct?.id) return;
+    
+    setLoading(true);
+    try {
+      const response = await apiCall(`/shop/ratings/?product=${currentProduct.id}`);
+      setReviews(Array.isArray(response) ? response : response.results || []);
+    } catch (error: any) {
+      console.error("Failed to fetch reviews:", error);
+      showErrorToast("Failed to load reviews");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleProductClick = (index: number) => {
     setSelectedIndex(index);
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const form = e.currentTarget;
 
     if (form.checkValidity() === false) {
       e.stopPropagation();
-    } else {
-      if (userData && comment && rating) {
-        setReviews([
-          ...reviews,
-          {
-            name: `${userData.firstName} ${userData.lastName}`,
-            rating,
-            comment,
-            avatar:
-              userData.profilePhoto || "/assets/img/avatar/placeholder.jpg",
-          },
-        ]);
-
-        setComment("");
-        setRating(0);
-      }
+      setValidated(true);
+      return;
     }
 
-    setValidated(true);
+    if (!currentProduct?.id) {
+      showErrorToast("Product not found");
+      return;
+    }
+
+    if (!rating || rating < 1) {
+      showErrorToast("Please select a rating");
+      return;
+    }
+
+    if (!comment.trim()) {
+      showErrorToast("Please enter a comment");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const reviewData = {
+        product: currentProduct.id,
+        rating,
+        review: comment.trim(),
+      };
+
+      // Create new review
+      await apiCall("/shop/ratings/", {
+        method: "POST",
+        body: JSON.stringify(reviewData),
+      });
+      showSuccessToast("Review submitted successfully!");
+
+      // Refresh reviews
+      await fetchReviews();
+      setComment("");
+      setRating(0);
+      setValidated(false);
+    } catch (error: any) {
+      console.error("Failed to submit review:", error);
+      showErrorToast(error.message || "Failed to submit review");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (reviewId: number) => {
+    if (!window.confirm("Are you sure you want to delete this review?")) {
+      return;
+    }
+
+    try {
+      await apiCall(`/shop/ratings/${reviewId}/`, {
+        method: "DELETE",
+      });
+      showSuccessToast("Review deleted successfully!");
+      await fetchReviews();
+    } catch (error: any) {
+      console.error("Failed to delete review:", error);
+      showErrorToast(error.message || "Failed to delete review");
+    }
   };
   return (
     <>
@@ -111,7 +179,7 @@ const ProductTeb = () => {
                   Detail
                 </button>
               </Tab>
-              <Tab className="nav-item" role="presentation" key={"info"}>
+              {/* <Tab className="nav-item" role="presentation" key={"info"}>
                 <button
                   className={`nav-link ${selectedIndex == 1 ? "active" : ""}`}
                   id="info-tab"
@@ -125,8 +193,8 @@ const ProductTeb = () => {
                 >
                   Specifications
                 </button>
-              </Tab>
-              <Tab className="nav-item" role="presentation" key={"vendor"}>
+              </Tab> */}
+              {/* <Tab className="nav-item" role="presentation" key={"vendor"}>
                 <button
                   className={`nav-link ${selectedIndex == 2 ? "active" : ""}`}
                   onClick={() => handleProductClick(2)}
@@ -140,11 +208,11 @@ const ProductTeb = () => {
                 >
                   Vendor
                 </button>
-              </Tab>
+              </Tab> */}
               <Tab className="nav-item" role="presentation" key={"review"}>
                 <button
-                  className={`nav-link ${selectedIndex == 3 ? "active" : ""}`}
-                  onClick={() => handleProductClick(3)}
+                  className={`nav-link ${selectedIndex == 1 ? "active" : ""}`}
+                  onClick={() => handleProductClick(1)}
                   id="review-tab"
                   data-bs-toggle="tab"
                   data-bs-target="#gi-spt-nav-review"
@@ -209,7 +277,7 @@ const ProductTeb = () => {
                 </p>
               </div>
             </Fade>
-            <Fade
+            {/* <Fade
               duration={1000}
               className={`tab-pane fade ${
                 selectedIndex === 1 ? "show active" : ""
@@ -291,11 +359,11 @@ const ProductTeb = () => {
                   </div>
                 </div>
               </div>
-            </Fade>
+            </Fade> */}
             <Fade
               duration={1000}
               className={`tab-pane fade ${
-                selectedIndex === 3 ? "show active" : ""
+                selectedIndex === 1 ? "show active" : ""
               }`}
             >
               {!login ? (
@@ -308,38 +376,87 @@ const ProductTeb = () => {
               ) : (
                 <div className="row">
                   <div className="gi-t-review-wrapper">
-                    {reviews.map((data, index) => (
-                      <div key={index} className="gi-t-review-item">
-                        <div className="gi-t-review-avtar">
-                          <img
-                            src={
-                              data.avatar ||
-                              process.env.NEXT_PUBLIC_URL +
-                                "/assets/img/avatar/placeholder.jpg"
-                            }
-                            alt="user"
-                          />
-                        </div>
-                        <div className="gi-t-review-content">
-                          <div className="gi-t-review-top">
-                            <div className="gi-t-review-name">{data.name}</div>
-                            <div className="gi-t-review-rating">
-                              {[...Array(5)].map((_, i) => (
-                                <i
-                                  key={i}
-                                  className={`gicon gi-star ${
-                                    i < data.rating ? "fill" : "gi-star-o"
-                                  }`}
-                                ></i>
-                              ))}
+                    {loading ? (
+                      <div style={{ textAlign: "center", padding: "20px" }}>
+                        <Spinner />
+                      </div>
+                    ) : reviews.length === 0 ? (
+                      <div style={{ textAlign: "center", padding: "20px" }}>
+                        <p>No reviews yet. Be the first to review this product!</p>
+                      </div>
+                    ) : (
+                      reviews.map((data) => {
+                        const reviewUserId = typeof data.user === 'object' ? data.user?.id : data.user;
+                        const isStaff = user?.is_staff || false;
+                        const canDelete = isStaff;
+                        const userName = data.user_name || data.user_email || "Anonymous";
+                        const userAvatar = data.user?.avatar_url || data.user?.avatar || 
+                          user?.avatar_url || user?.avatar || 
+                          process.env.NEXT_PUBLIC_URL + "/assets/img/avatar/placeholder.jpg";
+                        
+                        return (
+                          <div key={data.id} className="gi-t-review-item">
+                            <div className="gi-t-review-avtar">
+                              <img
+                                src={userAvatar}
+                                alt="user"
+                              />
+                            </div>
+                            <div className="gi-t-review-content">
+                              <div className="gi-t-review-top">
+                                <div className="gi-t-review-name">
+                                  {userName}
+                                  {data.is_verified_purchase && (
+                                    <span style={{ 
+                                      marginLeft: "8px", 
+                                      fontSize: "12px", 
+                                      color: "#5caf90",
+                                      fontWeight: "bold"
+                                    }}>
+                                      ✓ Verified Purchase
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="gi-t-review-rating">
+                                  {[...Array(5)].map((_, i) => (
+                                    <i
+                                      key={i}
+                                      className={`gicon gi-star ${
+                                        i < data.rating ? "fill" : "gi-star-o"
+                                      }`}
+                                    ></i>
+                                  ))}
+                                </div>
+                              </div>
+                              <div className="gi-t-review-bottom">
+                                <p>{data.review || data.comment}</p>
+                                <div style={{ fontSize: "12px", color: "#999", marginTop: "8px" }}>
+                                  {new Date(data.created).toLocaleDateString()}
+                                </div>
+                              </div>
+                              {canDelete && (
+                                <div style={{ marginTop: "10px" }}>
+                                  <button
+                                    onClick={() => handleDelete(data.id)}
+                                    style={{
+                                      background: "none",
+                                      border: "1px solid #dc3545",
+                                      color: "#dc3545",
+                                      padding: "5px 15px",
+                                      borderRadius: "4px",
+                                      cursor: "pointer",
+                                      fontSize: "12px"
+                                    }}
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+                              )}
                             </div>
                           </div>
-                          <div className="gi-t-review-bottom">
-                            <p>{data.comment}</p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                        );
+                      })
+                    )}
                   </div>
                   <div className="gi-ratting-content">
                     <h3>Add a Review</h3>
@@ -365,6 +482,7 @@ const ProductTeb = () => {
                               value={comment}
                               onChange={(e) => setComment(e.target.value)}
                               required
+                              disabled={submitting}
                             />
                             <Form.Control.Feedback type="invalid">
                               Please Enter your reply
@@ -374,8 +492,9 @@ const ProductTeb = () => {
                             style={{ marginTop: "15px" }}
                             className="gi-btn-2"
                             type="submit"
+                            disabled={submitting || !rating || !comment.trim()}
                           >
-                            Submit
+                            {submitting ? "Submitting..." : "Submit"}
                           </button>
                         </div>
                       </Form>

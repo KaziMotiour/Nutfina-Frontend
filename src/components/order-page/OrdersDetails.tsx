@@ -157,7 +157,7 @@ const ProductOrderDetails = ({ id }: { id: string | number }) => {
       refunded: "#f44336",
       completed: "#4caf50",
     };
-    return statusColors[status.toLowerCase()] || "#777";
+    return statusColors[status?.toLowerCase()] || "#777";
   };
 
   const getPaymentStatusColor = (status: string) => {
@@ -249,45 +249,6 @@ const ProductOrderDetails = ({ id }: { id: string | number }) => {
                         <span style={{ color: "#666" }}>{shippingAddress.country_name || shippingAddress.country || "N/A"}</span>
                       </div>
                     </div>
-                  ) : guestAddress ? (
-                    <div style={{ lineHeight: "2" }}>
-                      <div style={{ marginBottom: "12px" }}>
-                        <strong style={{ color: "#333", marginRight: "8px" }}>Name:</strong>
-                        <span style={{ color: "#666" }}>{guestAddress.full_name || "N/A"}</span>
-                      </div>
-                      {guestAddress.email && (
-                        <div style={{ marginBottom: "12px" }}>
-                          <strong style={{ color: "#333", marginRight: "8px" }}>Email:</strong>
-                          <span style={{ color: "#666" }}>{guestAddress.email}</span>
-                        </div>
-                      )}
-                      {guestAddress.phone && (
-                        <div style={{ marginBottom: "12px" }}>
-                          <strong style={{ color: "#333", marginRight: "8px" }}>Phone:</strong>
-                          <span style={{ color: "#666" }}>{guestAddress.phone}</span>
-                        </div>
-                      )}
-                      <div style={{ marginBottom: "12px" }}>
-                        <strong style={{ color: "#333", marginRight: "8px" }}>Address:</strong>
-                        <span style={{ color: "#666" }}>{guestAddress.full_address || "N/A"}</span>
-                      </div>
-                      <div style={{ marginBottom: "12px" }}>
-                        <strong style={{ color: "#333", marginRight: "8px" }}>City:</strong>
-                        <span style={{ color: "#666" }}>{guestAddress.city || "N/A"}</span>
-                      </div>
-                      <div style={{ marginBottom: "12px" }}>
-                        <strong style={{ color: "#333", marginRight: "8px" }}>District:</strong>
-                        <span style={{ color: "#666" }}>{guestAddress.district || "N/A"}</span>
-                      </div>
-                      <div style={{ marginBottom: "12px" }}>
-                        <strong style={{ color: "#333", marginRight: "8px" }}>Postal Code:</strong>
-                        <span style={{ color: "#666" }}>{guestAddress.postal_code || "N/A"}</span>
-                      </div>
-                      <div>
-                        <strong style={{ color: "#333", marginRight: "8px" }}>Country:</strong>
-                        <span style={{ color: "#666" }}>{guestAddress.country || "N/A"}</span>
-                      </div>
-                    </div>
                   ) : (
                     <div style={{ textAlign: "center", padding: "20px", color: "#999" }}>
                       <i className="fi fi-rs-marker" style={{ fontSize: "24px", marginBottom: "10px", display: "block" }}></i>
@@ -303,7 +264,7 @@ const ProductOrderDetails = ({ id }: { id: string | number }) => {
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "15px", width: "100%" }}>
                     <div style={{ flex: "0 0 auto" }}>
                       <h5 style={{ margin: 0, fontSize: "20px", fontWeight: "600", color: "#333" }}>
-                        Order #{order.id}
+                        Order #{order.order_number}
                       </h5>
                       <div style={{ marginTop: "10px", display: "flex", gap: "15px", flexWrap: "wrap" }}>
                         <span
@@ -317,7 +278,7 @@ const ProductOrderDetails = ({ id }: { id: string | number }) => {
                             color: getStatusColor(order.status),
                           }}
                         >
-                          {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                          {order.status?.charAt(0).toUpperCase() + order.status?.slice(1)}
                         </span>
                         <span
                           style={{
@@ -330,7 +291,7 @@ const ProductOrderDetails = ({ id }: { id: string | number }) => {
                             color: getPaymentStatusColor(order.payment_status),
                           }}
                         >
-                          Payment: {order.payment_status.charAt(0).toUpperCase() + order.payment_status.slice(1)}
+                          Payment: {order.payment_status?.charAt(0).toUpperCase() + order.payment_status?.slice(1)}
                         </span>
                       </div>
                     </div>
@@ -409,20 +370,43 @@ const ProductOrderDetails = ({ id }: { id: string | number }) => {
                         borderRadius: "0 0 8px 8px"
                       }}>
                         <div style={{ maxWidth: "400px", marginLeft: "auto" }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "10px", paddingBottom: "10px", borderBottom: "1px solid #e0e0e0" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "10px", paddingBottom: "10px" }}>
                             <span style={{ color: "#666" }}>Subtotal:</span>
                             <span style={{ fontWeight: "500", color: "#333" }}>${parseFloat(order.subtotal).toFixed(2)}</span>
                           </div>
                           {parseFloat(order.discount) > 0 && (
-                            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "10px", paddingBottom: "10px", borderBottom: "1px solid #e0e0e0" }}>
-                              <span style={{ color: "#666" }}>Discount:</span>
+                            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "10px", paddingBottom: "10px" }}>
+                              <div style={{ display: "flex", flexDirection: "column" }}>
+                                <span style={{ color: "#666" }}>
+                                  Discount
+                                  {order.coupon_code && (
+                                    <span style={{ 
+                                      marginLeft: "8px", 
+                                      fontSize: "12px", 
+                                      color: "#5caf90",
+                                      fontWeight: "600"
+                                    }}>
+                                      ({order.coupon_code})
+                                    </span>
+                                  )}
+                                </span>
+                                {/* {order.coupon_detail?.description && (
+                                  <span style={{ 
+                                    fontSize: "11px", 
+                                    color: "#999",
+                                    marginTop: "2px"
+                                  }}>
+                                    {order.coupon_detail.description}
+                                  </span>
+                                )} */}
+                              </div>
                               <span style={{ fontWeight: "500", color: "#4caf50" }}>-${parseFloat(order.discount).toFixed(2)}</span>
                             </div>
                           )}
                           {parseFloat(order.shipping_fee) > 0 && (
-                            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "10px", paddingBottom: "10px", borderBottom: "1px solid #e0e0e0" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "10px", paddingBottom: "10px"}}>
                               <span style={{ color: "#666" }}>Shipping Fee:</span>
-                              <span style={{ fontWeight: "500", color: "#333" }}>${parseFloat(order.shipping_fee).toFixed(2)}</span>
+                              <span style={{ fontWeight: "500", color: "#333" }}>Free</span>
                             </div>
                           )}
                           <div style={{ 

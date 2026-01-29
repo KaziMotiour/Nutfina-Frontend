@@ -43,7 +43,7 @@ const QuantitySelector = ({
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          minWidth: "35px",
+          minWidth: "30px",
           transition: "background-color 0.2s ease",
           lineHeight: "1"
         }}

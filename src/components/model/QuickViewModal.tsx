@@ -58,6 +58,13 @@ const QuickViewModal = ({ show, handleClose, data }) => {
     return cartItems.some((item: any) => item.variant === variantId || item.variant_detail?.id === variantId);
   };
 
+  // Get current quantity in cart for a variant
+  const getCartItemQuantity = (variantId: number | null): number => {
+    if (!variantId) return 0;
+    const cartItem = cartItems.find((item: any) => item.variant === variantId || item.variant_detail?.id === variantId);
+    return cartItem ? cartItem.quantity : 0;
+  };
+
   useEffect(() => {
     if (data?.options?.length > 0) {
       const mappedOptions = data.options.map((option: any) => ({
@@ -97,10 +104,21 @@ const QuickViewModal = ({ show, handleClose, data }) => {
       return;
     }
 
+    // Get the current quantity before adding
+    const currentQuantity = getCartItemQuantity(variantId);
+    const wasInCart = isItemInCart(variantId);
+
     setIsAddingToCart(true);
     try {
       await dispatch(addToCart({ variant_id: variantId, quantity: quantity })).unwrap();
-      showSuccessToast("Product added to cart successfully!");
+      
+      // Show appropriate message based on whether item was already in cart
+      if (wasInCart) {
+        const newQuantity = currentQuantity + quantity;
+        showSuccessToast(`Updated! Now you have ${newQuantity} ${newQuantity > 1 ? 'items' : 'item'} in cart`);
+      } else {
+        showSuccessToast(`Product added to cart successfully! (${quantity} ${quantity > 1 ? 'items' : 'item'})`);
+      }
     } catch (error: any) {
       showErrorToast(error || "Failed to add product to cart");
     } finally {
@@ -248,26 +266,16 @@ const QuickViewModal = ({ show, handleClose, data }) => {
                         />
                       </div>
                       <div className="gi-quickview-cart ">
-                        {isItemInCart(selectedVariantId) ? (
-                          <button
-                            title="Added to cart"
-                            className="gi-btn-1"
-                            style={{ backgroundColor: '#2e7d32', color: '#fff', opacity: 1, cursor: 'default' }}
-                            onClick={openCart}
-                            disabled={isAddingToCart}
-                          >
-                            <i className="fi-rr-check"></i> In your cart
-                          </button>
-                        ) : (
-                          <button
-                            onClick={handleCart}
-                            className="gi-btn-1"
-                            disabled={isAddingToCart}
-                            style={{ opacity: isAddingToCart ? 0.6 : 1 }}
-                          >
-                            <i className="fi-rr-shopping-basket"></i> {isAddingToCart ? 'Adding...' : 'Add To Cart'}
-                          </button>
-                        )}
+                        <button
+                          onClick={handleCart}
+                          className="gi-btn-1"
+                          disabled={isAddingToCart}
+                          style={{ opacity: isAddingToCart ? 0.6 : 1 }}
+                          title={"Add To Cart"}
+                        >
+                          <i className="fi-rr-shopping-basket"></i>&nbsp;
+                          {isAddingToCart ? 'Adding...' : 'Add To Cart'}
+                        </button>
                       </div>
                     </div>
                   </div>

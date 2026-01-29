@@ -53,10 +53,14 @@ export interface ShippingAddress {
 
 export interface Order {
   id: number;
+  order_number: string;
   user: number | null;
   user_email: string | null;
   shipping_address: number | null;
   shipping_address_detail?: ShippingAddress | null;
+  coupon?: number | null;
+  coupon_code?: string;
+  coupon_detail?: Coupon | null;
   status: "pending" | "confirmed" | "processing" | "shipped" | "delivered" | "cancelled" | "refunded" | "completed";
   payment_status: "pending" | "paid" | "failed" | "refunded";
   subtotal: string;
@@ -215,7 +219,9 @@ export const getOrders = createAsyncThunk(
       if (params?.payment_status) queryParams.append("payment_status", params.payment_status);
       if (params?.page) queryParams.append("page", String(params.page));
 
-      const url = `/orders/orders/${queryParams.toString() ? `?${queryParams}` : ""}`;
+      const queryString = queryParams.toString();
+      const baseUrl = "/orders/orders/";
+      const url = queryString ? `${baseUrl}?${queryString}` : baseUrl;
       const response = await apiCall(url);
       return Array.isArray(response) ? response : response.results || [];
     } catch (error: any) {
@@ -226,9 +232,21 @@ export const getOrders = createAsyncThunk(
 
 export const getOrder = createAsyncThunk(
   "order/getOrder",
-  async (id: number, { rejectWithValue }) => {
+  async (idOrOrderNumber: number | string, { rejectWithValue }) => {
     try {
-      const response = await apiCall(`/orders/orders/${id}/`);
+      // Check if it's a number (ID) or string (order_number)
+      const isNumber = typeof idOrOrderNumber === 'number' || !isNaN(Number(idOrOrderNumber));
+      let url;
+      
+      if (isNumber) {
+        // Use ID endpoint
+        url = `/orders/orders/${idOrOrderNumber}/`;
+      } else {
+        // Use order_number endpoint
+        url = `/orders/orders/by-number/${idOrOrderNumber}/`;
+      }
+      
+      const response = await apiCall(url);
       return response;
     } catch (error: any) {
       return rejectWithValue(error.message || "Failed to get order");
@@ -254,6 +272,38 @@ export const createOrder = createAsyncThunk(
       return response;
     } catch (error: any) {
       return rejectWithValue(error.message || "Failed to create order");
+    }
+  }
+);
+
+// New checkout thunk that matches the backend API contract
+export const checkout = createAsyncThunk(
+  "order/checkout",
+  async (data: {
+    address_id?: number;
+    address?: {
+      name: string;
+      email?: string;
+      phone: string;
+      full_address: string;
+      country: string;
+      district: string;
+      postal_code?: string;
+      is_default?: boolean;
+    };
+    coupon_code?: string;
+    payment_method?: string;
+    shipping_fee?: number;
+    notes?: string;
+  }, { rejectWithValue }) => {
+    try {
+      const response = await apiCall("/orders/checkout/", {
+        method: "POST",
+        body: JSON.stringify(data),
+      });
+      return response;
+    } catch (error: any) {
+      return rejectWithValue(error.message || "Failed to checkout");
     }
   }
 );
@@ -437,6 +487,21 @@ const orderSlice = createSlice({
         state.cart = null;
       })
       .addCase(createOrder.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      .addCase(checkout.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(checkout.fulfilled, (state, action) => {
+        state.loading = false;
+        state.orders.unshift(action.payload);
+        state.currentOrder = action.payload;
+        // Clear cart after successful checkout
+        state.cart = null;
+      })
+      .addCase(checkout.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       })

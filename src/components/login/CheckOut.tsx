@@ -14,7 +14,7 @@ import Spinner from "../button/Spinner";
 import { useRouter } from "next/navigation";
 import { addOrder, clearCart, setOrders, setSwitchOn } from "@/store/reducers/cartSlice";
 import { loginUser, getCurrentUser, getUserAddress, getDefaultAddress, createAddress, Address as BackendAddress } from "@/store/reducers/userSlice";
-import { mergeCart, getCart, CartItem as BackendCartItem } from "@/store/reducers/orderSlice";
+import { mergeCart, getCart, CartItem as BackendCartItem, checkout } from "@/store/reducers/orderSlice";
 import { showErrorToast, showSuccessToast } from "../toast-popup/Toastify";
 import DiscountCoupon from "../discount-coupon/DiscountCoupon";
 
@@ -110,6 +110,12 @@ const CheckOut = ({
     const [subTotal, setSubTotal] = useState(0);
     const [vat, setVat] = useState(0);
     const [discount, setDiscount] = useState(0);
+    const [discountAmount, setDiscountAmount] = useState(0);
+    const [appliedCoupon, setAppliedCoupon] = useState<{
+      code: string;
+      discountAmount: number;
+      coupon: any;
+    } | null>(null);
     const [selectedMethod, setSelectedMethod] = useState("free");
     const [checkOutMethod, setCheckOutMethod] = useState("guest");
     const [billingMethod, setBillingMethod] = useState("new");
@@ -240,24 +246,8 @@ const CheckOut = ({
                 }
             }
         } else if (!isLogin) {
-            // If not logged in, use localStorage addresses
-            const existingAddresses = JSON.parse(
-                localStorage.getItem("shippingAddresses") || "[]"
-            );
-            setAddressVisible(existingAddresses);
-
-            // If user has addresses and hasn't explicitly chosen "new", default to "use existing address"
-            if (!userExplicitlyChoseNew.current && existingAddresses.length > 0) {
-                // Set billing method to "use" if user has addresses
-                if (billingMethod === "new") {
-                    setBillingMethod("use");
-                }
-
-                // Auto-select if no address is selected
-                if (!selectedAddress) {
-                    setSelectedAddress(existingAddresses[0]);
-                }
-            }
+            // For guest users, always show the form (no saved addresses)
+            setAddressVisible([]);
         }
     }, [isLogin, userAddresses, defaultAddress, billingMethod, selectedAddress]);
 
@@ -425,42 +415,8 @@ const CheckOut = ({
         showErrorToast(error?.message || "Failed to add address. Please try again.");
       }
     } else {
-      // For guest users, save to localStorage
-      const guestAddress = {
-        id: `${Date.now()}`,
-        ...addressData,
-      };
-
-      const existingAddresses = JSON.parse(
-        localStorage.getItem("shippingAddresses") || "[]"
-      );
-
-      let updatedAddresses;
-      if (existingAddresses.length === 0) {
-        updatedAddresses = [guestAddress];
-        setSelectedAddress(guestAddress);
-      } else {
-        updatedAddresses = [...existingAddresses, guestAddress];
-      }
-
-      localStorage.setItem("shippingAddresses", JSON.stringify(updatedAddresses));
-      setAddressVisible(updatedAddresses);
-      setSelectedAddress(guestAddress);
-      
-      showSuccessToast("Address added successfully!");
-      
-      // Reset form
-      setFormData({
-        name: "",
-        email: "",
-        phone: "",
-        full_address: "",
-        country: "",
-        district: "",
-        postal_code: "",
-        is_default: false,
-      });
-      
+      // For guest users, just show success message (address will be saved during checkout)
+      showSuccessToast("Address information saved! You can now proceed to checkout.");
       setValidated(false);
     }
   };
@@ -481,12 +437,6 @@ const CheckOut = ({
     setRegistrations(storedRegistrations);
   }, []);
 
-  useEffect(() => {
-    const storedAddresses = JSON.parse(
-      localStorage.getItem("shippingAddresses") || "[]"
-    );
-    setAddressVisible(storedAddresses);
-  }, []);
 
   // item Price - Update from backend cart
   useEffect(() => {
@@ -494,19 +444,32 @@ const CheckOut = ({
       const subtotal = parseFloat(cart.subtotal || "0");
       setSubTotal(subtotal);
       // Calculate VAT (20%)
-      const vatAmount = subtotal * 0.2;
-      setVat(vatAmount);
+      // const vatAmount = subtotal * 0.2;
+      // setVat(vatAmount);
     } else {
       setSubTotal(0);
       setVat(0);
     }
   }, [cart]);
 
-  const handleDiscountApplied = (discount) => {
-    setDiscount(discount);
+  const handleDiscountApplied = (couponData: {
+    code: string;
+    discountAmount: number;
+    coupon: any;
+  }) => {
+    if (couponData && couponData.code) {
+      // Coupon applied
+      setAppliedCoupon(couponData);
+      setDiscountAmount(couponData.discountAmount);
+      setDiscount(couponData.discountAmount);
+    } else {
+      // Coupon removed
+      setAppliedCoupon(null);
+      setDiscountAmount(0);
+      setDiscount(0);
+    }
   };
 
-  const discountAmount = subTotal * (discount / 100);
   const total = subTotal + vat - discountAmount;
   // item Price end
 
@@ -535,9 +498,9 @@ const CheckOut = ({
   // Check if all required information is filled
   const isCheckoutDisabled = () => {
     // Terms & Conditions must be checked
-    if (!isTermsChecked) {
-      return true;
-    }
+    // if (!isTermsChecked) {
+    //   return true;
+    // }
 
     // Either an address must be selected, or form must have all required fields
     if (selectedAddress) {
@@ -556,113 +519,127 @@ const CheckOut = ({
   };
 
   const handleCheckout = async () => {
-    if (!isTermsChecked) {
-      showErrorToast("Please agree to the Terms & Conditions.");
-      checkboxRef.current?.focus();
-      return;
-    }
-
-    let addressToUse = selectedAddress;
-
-    // If no address is selected, check if form has valid data
-    if (!addressToUse) {
-      // Validate form data
-      if (!formData.name || !formData.phone || !formData.full_address || !formData.country || !formData.district) {
-        showErrorToast("Please fill in all required address fields.");
-        setValidated(true);
+    try {
+      // Validate cart is not empty
+      if (!cart || !cart.items || cart.items.length === 0) {
+        showErrorToast("Your cart is empty.");
         return;
       }
 
-      // Prepare address data from form
-      const addressData: Omit<BackendAddress, "id" | "user" | "created" | "last_modified" | "country_name"> = {
-        name: formData.name.trim(),
-        email: formData.email?.trim() || "",
-        phone: formData.phone.trim(),
-        full_address: formData.full_address.trim(),
-        country: formData.country,
-        district: formData.district.trim(),
-        postal_code: formData.postal_code?.trim() || "",
-        is_default: formData.is_default || false,
-      };
+      // Prepare checkout payload
+      const checkoutPayload: {
+        address_id?: number;
+        address?: {
+          name: string;
+          email?: string;
+          phone: string;
+          full_address: string;
+          country: string;
+          district: string;
+          postal_code?: string;
+          is_default?: boolean;
+        };
+        coupon_code?: string;
+        payment_method?: string;
+        shipping_fee?: number;
+        notes?: string;
+      } = {};
 
-      // If user is logged in, save to backend first
+      // Determine address strategy
       if (isLogin) {
-        try {
-          const result = await dispatch(createAddress(addressData as any));
-          
-          if (createAddress.fulfilled.match(result)) {
-            const backendAddr = result.payload as BackendAddress;
-            addressToUse = convertBackendAddressToLocal(backendAddr);
-          } else {
-            const errorMessage = result.payload as string;
-            if (typeof errorMessage === 'string') {
-              showErrorToast(errorMessage);
-            } else if (errorMessage && typeof errorMessage === 'object') {
-              const errors = Object.values(errorMessage).flat().join(', ');
-              showErrorToast(errors || "Failed to save address");
-            } else {
-              showErrorToast("Failed to save address. Please try again.");
-            }
+        // Logged-in user
+        if (selectedAddress && selectedAddress.id) {
+          // Use existing address - send address_id only
+          checkoutPayload.address_id = parseInt(selectedAddress.id);
+        } else {
+          // New address - validate and send full address payload
+          if (!formData.name || !formData.phone || !formData.full_address || !formData.country || !formData.district) {
+            showErrorToast("Please fill in all required address fields.");
+            setValidated(true);
             return;
           }
-        } catch (error: any) {
-          console.error("Error creating address:", error);
-          showErrorToast(error?.message || "Failed to save address. Please try again.");
-          return;
+
+          checkoutPayload.address = {
+            name: formData.name.trim(),
+            email: formData.email?.trim() || "",
+            phone: formData.phone.trim(),
+            full_address: formData.full_address.trim(),
+            country: formData.country,
+            district: formData.district.trim(),
+            postal_code: formData.postal_code?.trim() || "",
+            is_default: formData.is_default || false,
+          };
         }
       } else {
-        // For guest users, create address object for this order
-        addressToUse = {
-          id: `${Date.now()}`,
-          name: addressData.name,
-          email: addressData.email,
-          phone: addressData.phone,
-          full_address: addressData.full_address,
-          country: addressData.country,
-          district: addressData.district,
-          postal_code: addressData.postal_code,
-          is_default: false,
+        // Guest user - always send full address payload
+        if (!formData.name || !formData.phone || !formData.full_address || !formData.country || !formData.district) {
+          showErrorToast("Please fill in all required address fields.");
+          setValidated(true);
+          return;
+        }
+
+        checkoutPayload.address = {
+          name: formData.name.trim(),
+          email: formData.email?.trim() || "",
+          phone: formData.phone.trim(),
+          full_address: formData.full_address.trim(),
+          country: formData.country,
+          district: formData.district.trim(),
+          postal_code: formData.postal_code?.trim() || "",
         };
-
-        // Also save to localStorage for future use
-        const existingAddresses = JSON.parse(
-          localStorage.getItem("shippingAddresses") || "[]"
-        );
-        const updatedAddresses = [...existingAddresses, addressToUse];
-        localStorage.setItem("shippingAddresses", JSON.stringify(updatedAddresses));
       }
+
+      // Add optional fields
+      if (appliedCoupon && appliedCoupon.code) {
+        checkoutPayload.coupon_code = appliedCoupon.code;
+      }
+
+      checkoutPayload.payment_method = "COD"; // Cash on Delivery
+      checkoutPayload.shipping_fee = 0; // Free shipping
+
+      // Call backend checkout API
+      const result = await dispatch(checkout(checkoutPayload));
+
+      if (checkout.fulfilled.match(result)) {
+        showSuccessToast("Order placed successfully!");
+        
+        // Clear local cart state
+        dispatch(clearCart());
+        
+        // Get order data from response and navigate to invoice page
+        // Prefer order_number over ID as it's more user-friendly
+        const orderData = result.payload as any;
+        const order = orderData?.order || orderData;
+        const orderNumber = order?.order_number;
+        const orderId = order?.id;
+        
+        if (orderNumber) {
+          // Use order_number if available (more user-friendly)
+          router.push(`/user-invoice/${orderNumber}`);
+        } else if (orderId) {
+          // Fallback to order ID
+          router.push(`/user-invoice/${orderId}`);
+        } else {
+          // Fallback to orders page if neither is available
+          router.push("/orders");
+        }
+      } else {
+        // Handle error from backend
+        const errorMessage = result.payload as string;
+        if (typeof errorMessage === 'string') {
+          showErrorToast(errorMessage);
+        } else if (errorMessage && typeof errorMessage === 'object') {
+          // Handle validation errors from backend
+          const errors = Object.values(errorMessage).flat().join(', ');
+          showErrorToast(errors || "Failed to place order");
+        } else {
+          showErrorToast("Failed to place order. Please try again.");
+        }
+      }
+    } catch (error: any) {
+      console.error("Checkout error:", error);
+      showErrorToast(error?.message || "An unexpected error occurred during checkout.");
     }
-
-    if (!addressToUse) {
-      showErrorToast("Please provide a billing address.");
-      return;
-    }
-
-    const newOrder = {
-      orderId: randomId,
-      date: new Date().getTime(),
-      shippingMethod: selectedMethod,
-      totalItems: cartItems.length,
-      totalPrice: total,
-      status: "Pending",
-      products: cartItems,
-      address: addressToUse,
-    };
-
-    const orderExists = orders.some(
-      (order: any) => order.id === newOrder.orderId
-    );
-
-    if (!orderExists) {
-      dispatch(addOrder(newOrder));
-    } else {
-      console.log(
-        `Order with ID ${newOrder.orderId} already exists and won't be added again.`
-      );
-    }
-    dispatch(clearCart());
-
-    router.push("/orders");
   };
 
   const handleRemoveAddress = (index: number) => {
@@ -759,46 +736,23 @@ const CheckOut = ({
                         <div>
                           <span className="text-left">Sub-Total</span>
                           <span className="text-right">
-                            ${subTotal.toFixed(2)}
+                            {subTotal.toFixed(2)} BDT
                           </span>
                         </div>
                         <div>
                           <span className="text-left">Delivery Charges</span>
-                          <span className="text-right">${vat.toFixed(2)}</span>
+                          <span className="text-right">Free</span>
                         </div>
                         <div>
                           <DiscountCoupon
+                            subtotal={subTotal}
                             onDiscountApplied={handleDiscountApplied}
                           />
-                        </div>
-                        <div className="gi-checkout-coupan-content">
-                          <form
-                            className="gi-checkout-coupan-form"
-                            name="gi-checkout-coupan-form"
-                            method="post"
-                            action="#"
-                          >
-                            <input
-                              className="gi-coupan"
-                              type="text"
-                              required
-                              placeholder="Enter Your Coupan Code"
-                              name="gi-coupan"
-                              defaultValue=""
-                            />
-                            <button
-                              className="gi-coupan-btn gi-btn-2"
-                              type="submit"
-                              name="subscribe"
-                            >
-                              Apply
-                            </button>
-                          </form>
                         </div>
                         <div className="gi-checkout-summary-total">
                           <span className="text-left">Total Amount</span>
                           <span className="text-right">
-                            ${total.toFixed(2)}
+                            {total.toFixed(2)} BDT
                           </span>
                         </div>
                       </div>
@@ -817,15 +771,12 @@ const CheckOut = ({
                           >
                             <div style={{ flex: 1 }}>
                               <h6 style={{ margin: 0, fontSize: "14px", fontWeight: "500" }}>
-                                {item.title}
+                                {item.title} ({item.quantity}x)
                               </h6>
-                              <span style={{ fontSize: "12px", color: "#777" }}>
-                                Qty: {item.quantity}
-                              </span>
                             </div>
                             <div style={{ textAlign: "right" }}>
                               <span style={{ fontSize: "14px", fontWeight: "600", color: "#333" }}>
-                                ${item.line_total.toFixed(2)}
+                                {item.line_total.toFixed(2)} BDT
                               </span>
                             </div>
                           </div>
@@ -861,7 +812,7 @@ const CheckOut = ({
                                 checked={selectedMethod === "free"}
                                 onChange={handleDeliveryChange}
                               />
-                              <label htmlFor="del1">Rate - $0.00</label>
+                              <label htmlFor="del1">Rate - 0.00 BDT</label>
                             </span>
                             <span>
                               <span className="gi-del-opt-head">Flat Rate</span>
@@ -873,7 +824,7 @@ const CheckOut = ({
                                 checked={selectedMethod === "flat"}
                                 onChange={handleDeliveryChange}
                               />
-                              <label htmlFor="del2">Rate - $5.00</label>
+                              <label htmlFor="del2">Rate - 5.00 BDT</label>
                             </span>
                           </span>
                           <span className="gi-del-comment">
@@ -926,7 +877,7 @@ const CheckOut = ({
                               placeholder="Comments"
                             ></textarea>
                           </span>
-                          <span className="gi-pay-agree">
+                          {/* <span className="gi-pay-agree">
                             <input
                               ref={checkboxRef}
                               required
@@ -942,7 +893,7 @@ const CheckOut = ({
                               <span>Terms & Conditions.</span>
                             </a>
                             <span className="checked"></span>
-                          </span>
+                          </span> */}
                         </form>
                       </div>
                     </div>
@@ -1057,7 +1008,7 @@ const CheckOut = ({
                                                 <Form.Control
                                                   type="password"
                                                   name="password"
-                                                  pattern="^\d{6,12}$"
+                                                  pattern="^\d{6,12} BDT"
                                                   placeholder="Enter your password"
                                                   required
                                                   value={password}

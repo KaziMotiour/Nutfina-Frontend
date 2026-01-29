@@ -6,8 +6,6 @@ import UserProfile from '@/components/user-profile/UserProfile'
 const page = () => {
     return (
         <>
-
-
             <Breadcrumb title={"Profile"} />
             <UserProfile />
 

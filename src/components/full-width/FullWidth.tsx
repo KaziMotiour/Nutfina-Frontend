@@ -101,11 +101,19 @@ const FullWidth = ({
   const transformedProducts = useMemo(() => {
     if (!products || products.length === 0) return [];
 
-    return products.map((product: Product) => {
-      // Get the first variant (preferably featured) or use base price
+    // Filter products to only include those with variants
+    const productsWithVariants = products.filter((product: Product) => {
+      return product.variants && product.variants.length > 0;
+    });
+
+    return productsWithVariants.map((product: Product) => {
+      // Get the first variant (preferably featured) - guaranteed to exist due to filter
       const firstVariant = product.variants && product.variants.length > 0 
         ? product.variants[0] 
         : null;
+      
+      // Safety check: skip if no variant (shouldn't happen due to filter, but just in case)
+      if (!firstVariant) return null;
       
       // Get images - prefer variant images, fallback to product images
       const images = firstVariant?.images && firstVariant.images.length > 0
@@ -151,7 +159,7 @@ const FullWidth = ({
         quantity: 1,
         sale: firstVariant?.on_sale ? "Sale" : "",
       };
-    });
+    }).filter((item: any) => item !== null); // Remove any null items
   }, [products]);
 
   // Calculate pagination info

@@ -78,7 +78,7 @@ const Deal = ({
 
       })
       return {
-        id: firstVariant?.id || product.id,
+        id: product.id,
         title: product.name,
         newPrice: price,
         oldPrice: oldPrice || price,

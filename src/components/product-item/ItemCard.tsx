@@ -87,10 +87,7 @@ const ItemCard = ({ data, showAddToCart = false }: any) => {
       // showErrorToast("Item already have to wishlist");
     }
   };
-
-  useEffect(() => {
-    console.log(data);
-  }, [data]);
+  
   // const isInCompare = (data: Item) => {
   //   return compareItems.some((item: Item) => item.id === data.id);
   // };
@@ -226,46 +223,42 @@ const ItemCard = ({ data, showAddToCart = false }: any) => {
             </div>
           </div>
           <div className="gi-pro-content">
-            <Link href={`/product-details/${data.product_id}`}>
+            {/* <Link href={`/product-details/${data.id}`}> */}
               <h6 className="gi-pro-stitle">{data.category}</h6>
-            </Link>
-            <h5 className="gi-pro-title">
-              <Link href={`/product-details/${data.product_id}`}>{data.title}</Link>
-            </h5>
-            <p className="gi-info">
-              Contrary to popular belief, Lorem Ipsum is not simply random text.
-              It has roots in a piece of classical Latin literature from 45 BC,
-              making it over 2000 years old.
-            </p>
-            <div className="gi-pro-rat-price">
-              <span className="gi-pro-rating">
-                <StarRating rating={data.rating} />
-                <span className="qty">{data.weight}</span>
-              </span>
-              <span className="gi-price">
-                <div className="row">
-                    <div className="col-12 mb-2">
-                        <span className="new-price">${data.newPrice}.00</span>
-                        <span className="old-price">${data.oldPrice}.00</span>
+              <h5 className="gi-pro-title">
+                  {data.title}
+              </h5>
+              <div className="gi-pro-rat-price">
+                <span className="qty" style={{ fontSize: '14px' }}>
+                    {data.weight}
+                    </span>
+                <span className="gi-pro-rating">
+                  {/* <StarRating rating={data.rating} /> */}
+                </span>
+                <span className="gi-price">
+                    <div className="row">
+                        <div className="col-12 mb-2">
+                            <span className="new-price">${data.newPrice}.00</span>
+                            <span className="old-price">${data.oldPrice}.00</span>
+                        </div>
                     </div>
-                    {showAddToCart && (
-                      <div className="col-12 d-flex justify-content-center">
-                        <button
-                          title="Quick view"
-                          className="gi-btn-group add-to-cart add-to-cart-btn border rounded p-2 w-100 w-sm-auto mt-2 mt-sm-0"
-                          onClick={handleShow}
-                          style={{ backgroundColor: '#5caf90', color: '#fff', opacity: 1 }}
-                        >
-                          <i className="fi-rr-eye"></i>
-                          <span className="d-sm-inline"> Quick view</span>
-                        </button>
-                      </div>
-                    )}
-                </div>
-              </span>
-              
-            </div>
+                </span>
+              </div>
+            {/* </Link> */}
           </div>
+          {showAddToCart && (
+              <div className="col-12 d-flex justify-content-center p-2">
+                <button
+                  title="Quick view"
+                  className="gi-btn-group add-to-cart add-to-cart-btn border rounded p-2 w-100 w-sm-auto mt-2 mt-sm-0"
+                  onClick={handleShow}
+                  style={{ backgroundColor: '#5caf90', color: '#fff', opacity: 1 }}
+                >
+                  <i className="fi-rr-eye"></i>
+                  <span className="d-sm-inline"> Quick view</span>
+                </button>
+              </div>
+            )}
         </div>
         <QuickViewModal data={data} handleClose={handleClose} show={show} />
         <SidebarCart isCartOpen={isCartOpen} closeCart={closeCart} />

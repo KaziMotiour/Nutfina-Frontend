@@ -219,6 +219,7 @@ export const getProduct = createAsyncThunk(
     try {
       const response = await apiCall(`/shop/products/${slug}/`);
       return response;
+      console.log('response', response);
     } catch (error: any) {
       return rejectWithValue(error.message || "Failed to get product");
     }

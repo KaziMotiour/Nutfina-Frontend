@@ -1,5 +1,5 @@
 "use client";
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import SidebarArea from "../shop-sidebar/sidebar-area/SidebarArea";
 import { Swiper, SwiperSlide } from "swiper/react";
 import StarRating from "../stars/StarRating";
@@ -10,7 +10,7 @@ import useSWR from "swr";
 import fetcher from "../fetcher-api/Fetcher";
 import Spinner from "../button/Spinner";
 import { useDispatch, useSelector } from "react-redux";
-import { RootState } from "@/store";
+import { RootState, AppDispatch } from "@/store";
 import {
   setRange,
   setSelectedCategory,
@@ -18,8 +18,10 @@ import {
   setSelectedTags,
   setSelectedWeight,
 } from "@/store/reducers/filterReducer";
+import { getProduct } from "@/store/reducers/shopSlice";
 
 const ProductPage = ({
+  productId,
   order = "",
   none = "none",
   lg = 12,
@@ -27,7 +29,7 @@ const ProductPage = ({
   hasPaginate = false,
   onError = () => {},
 }) => {
-  const dispatch = useDispatch();
+  const dispatch = useDispatch<AppDispatch>();
   const {
     selectedCategory,
     selectedWeight,
@@ -36,6 +38,20 @@ const ProductPage = ({
     selectedColor,
     selectedTags,
   } = useSelector((state: RootState) => state.filter);
+
+  // Fetch product details from Redux store
+  const { currentProduct, loading: productLoading, error: productError } = useSelector(
+    (state: RootState) => state.shop
+  );
+
+  // Fetch the product when productId is available
+  useEffect(() => {
+    if (productId) {
+      // The backend uses slug for product lookup
+      // If productId is actually an ID, you may need to modify the backend or fetch by ID first
+      dispatch(getProduct(productId));
+    }
+  }, [productId, dispatch]);
 
   const { data, error } = useSWR("/api/moreitem", fetcher, {
     onSuccess,
@@ -49,8 +65,29 @@ const ProductPage = ({
     [dispatch]
   );
 
-  if (error) return <div>Failed to load products</div>;
-  if (!data)
+  useEffect(() => {
+    if (currentProduct) { 
+      console.log(currentProduct);
+    }
+  }, [currentProduct]);
+
+  // Show loading state if fetching product details
+  if (productId && productLoading) {
+    return (
+      <div>
+        <Spinner />
+      </div>
+    );
+  }
+
+  // Show error if product fetch failed
+  if (productId && productError) {
+    return <div>Failed to load product: {productError}</div>;
+  }
+
+  // Show loading for additional products (only if no productId)
+  if (!productId && error) return <div>Failed to load products</div>;
+  if (!productId && !data)
     return (
       <div>
         <Spinner />
@@ -90,31 +127,31 @@ const ProductPage = ({
     else return data;
   };
 
-  let filteredData = [...data];
+  // let filteredData = [...data];
 
-  if (selectedCategory.length > 0) {
-    filteredData = filteredData.filter((item) =>
-      selectedCategory.includes(item.category)
-    );
-  }
+  // if (selectedCategory.length > 0) {
+  //   filteredData = filteredData.filter((item) =>
+  //     selectedCategory.includes(item.category)
+  //   );
+  // }
 
-  if (selectedWeight.length > 0) {
-    filteredData = filteredData.filter((item) =>
-      selectedWeight.includes(item.weight)
-    );
-  }
+  // if (selectedWeight.length > 0) {
+  //   filteredData = filteredData.filter((item) =>
+  //     selectedWeight.includes(item.weight)
+  //   );
+  // }
 
-  if (selectedColor.length > 0) {
-    filteredData = filteredData.filter((item) =>
-      selectedColor.includes(item.Color)
-    );
-  }
+  // if (selectedColor.length > 0) {
+  //   filteredData = filteredData.filter((item) =>
+  //     selectedColor.includes(item.Color)
+  //   );
+  // }
 
-  if (selectedTags.length > 0) {
-    filteredData = filteredData.filter((item) =>
-      selectedTags.includes(item.tags)
-    );
-  }
+  // if (selectedTags.length > 0) {
+  //   filteredData = filteredData.filter((item) =>
+  //     selectedTags.includes(item.tags)
+  //   );
+  // }
 
   return (
     <>
@@ -125,11 +162,11 @@ const ProductPage = ({
       >
         {/* <!-- Single product content Start --> */}
         <div className="single-pro-block">
-          <SingleProductContent />
+          <SingleProductContent product={currentProduct} />
         </div>
         {/* <!--Single product content End -->
                     <!-- Add More and get discount content Start --> */}
-        <div className="single-add-more m-tb-40">
+        {/* <div className="single-add-more m-tb-40">
           <Swiper
             loop={true}
             autoplay={{ delay: 1000 }}
@@ -189,7 +226,7 @@ const ProductPage = ({
               </SwiperSlide>
             ))}
           </Swiper>
-        </div>
+        </div> */}
 
         {/* <!-- Single product tab start --> */}
         <ProductTeb />
@@ -197,7 +234,7 @@ const ProductPage = ({
       </Col>
       {/* <!-- Sidebar Area Start --> */}
 
-      <SidebarArea
+      {/* <SidebarArea
         min={minPrice}
         max={maxPrice}
         handleCategoryChange={handleCategoryChange}
@@ -211,7 +248,7 @@ const ProductPage = ({
         selectedTags={selectedTags}
         none={none}
         order={order}
-      />
+      /> */}
     </>
   );
 };

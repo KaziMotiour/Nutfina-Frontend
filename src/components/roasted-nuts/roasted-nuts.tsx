@@ -20,6 +20,10 @@ const RoastedNuts = () => {
         currentCategory 
     } = useSelector((state: RootState) => state.shop);
 
+    useEffect(() => {
+        console.log('products', products);
+    }, [products]);
+
     // Fetch category by slug "roasted-nuts"
     useEffect(() => {
         dispatch(getCategory("roasted-nuts"));
@@ -102,7 +106,7 @@ const RoastedNuts = () => {
             });
 
             return {
-                id: firstVariant.id, // Use variant ID (guaranteed to exist since we filtered)
+                id: product.id, // Use variant ID (guaranteed to exist since we filtered)
                 variant_id: firstVariant.id, // Explicitly set variant_id for cart
                 product_id: product.id, // Keep product ID for reference
                 title: product.name,

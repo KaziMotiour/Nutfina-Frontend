@@ -3,17 +3,19 @@ import { useEffect, useState } from "react";
 import { Swiper, SwiperSlide } from "swiper/react";
 import ItemCard from "../product-item/ItemCard";
 import { useDispatch, useSelector } from "react-redux";
-import { RootState } from "../../store";
-import { addItem } from "../../store/reducers/cartSlice";
+import { RootState, AppDispatch } from "../../store";
 import { Fade } from "react-awesome-reveal";
 import { Col, Row } from "react-bootstrap";
 import useSWR from "swr";
 import fetcher from "../fetcher-api/Fetcher";
 import Spinner from "../button/Spinner";
 import { removeWishlist } from "@/store/reducers/wishlistSlice";
+import { addToCart } from "@/store/reducers/orderSlice";
+import { showErrorToast, showSuccessToast } from "../toast-popup/Toastify";
 
 interface Item {
   id: number;
+  variant_id?: number;
   title: string;
   newPrice: number;
   waight: string;
@@ -38,6 +40,10 @@ const Wishlist = ({
   const wishlistItems = useSelector(
     (state: RootState) => state.wishlist.wishlist
   );
+  const cart = useSelector((state: RootState) => state.order.cart);
+  const cartItems = cart?.items || [];
+  const cartLoading = useSelector((state: RootState) => state.order.loading);
+  const [addingToCart, setAddingToCart] = useState<number | null>(null);
   const [currentDate, setCurrentDate] = useState(
     new Date().toLocaleDateString("en-GB")
   );
@@ -46,14 +52,71 @@ const Wishlist = ({
     setCurrentDate(new Date().toLocaleDateString("en-GB"));
   }, []);
 
-  const dispatch = useDispatch();
+  const dispatch = useDispatch<AppDispatch>();
+
+  // Helper function to get variant ID from item
+  const getVariantId = (item: Item): number => {
+    return item.variant_id || item.id;
+  };
+
+  // Check if item is in cart (by variant_id)
+  const isItemInCart = (variantId: number) => {
+    return cartItems.some((item: any) => item.variant === variantId || item.variant_detail?.id === variantId);
+  };
+
+  // Get current quantity in cart for a variant
+  const getCartItemQuantity = (variantId: number): number => {
+    const cartItem = cartItems.find((item: any) => item.variant === variantId || item.variant_detail?.id === variantId);
+    return cartItem ? cartItem.quantity : 0;
+  };
 
   const handleRemoveFromwishlist = (id: number) => {
     dispatch(removeWishlist(id));
+    showSuccessToast("Item removed from wishlist");
   };
 
-  const handleCart = (data: Item) => {
-    dispatch(addItem(data));
+  const handleCart = async (data: Item) => {
+    // Get variant_id from data
+    // For wishlist items, the id might be the variant_id, or it could be stored as variant_id
+    const variantId = data.variant_id || data.id;
+    
+    if (!variantId) {
+      showErrorToast("Product variant not found");
+      return;
+    }
+
+    // Check if item is already in cart
+    if (data.status === "Out Of Stock") {
+      showErrorToast("This item is out of stock");
+      return;
+    }
+
+    // Get the current quantity before adding
+    const currentQuantity = getCartItemQuantity(variantId);
+    const wasInCart = isItemInCart(variantId);
+
+    setAddingToCart(data.id);
+
+    try {
+      // Call the backend to add to cart (adds 1 to existing quantity or creates new item)
+      await dispatch(addToCart({ variant_id: variantId, quantity: 1 })).unwrap();
+      
+      // Show appropriate message based on whether item was already in cart
+      if (wasInCart) {
+        const newQuantity = currentQuantity + 1;
+        showSuccessToast(`Updated! Now you have ${newQuantity} ${newQuantity > 1 ? 'items' : 'item'} in cart`);
+      } else {
+        showSuccessToast("Product added to cart successfully!");
+      }
+      
+      // Optionally remove from wishlist after adding to cart
+      // Uncomment the line below if you want to auto-remove from wishlist after adding to cart
+      // dispatch(removeWishlist(data.id));
+    } catch (error: any) {
+      showErrorToast(error || "Failed to add product to cart");
+    } finally {
+      setAddingToCart(null);
+    }
   };
 
   const { data, error } = useSWR("/api/deal", fetcher, { onSuccess, onError });
@@ -67,6 +130,7 @@ const Wishlist = ({
     );
 
   const getData = () => {
+    console.log(wishlistItems);
     if (hasPaginate) return data.data;
     else return data;
   };
@@ -143,11 +207,50 @@ const Wishlist = ({
                               <td>
                                 <span className="tbl-btn">
                                   <a
-                                    className="gi-btn-2 add-to-cart"
-                                    title="Add To Cart"
-                                    onClick={() => handleCart(data)}
+                                    className={`gi-btn-2 add-to-cart ${
+                                      addingToCart === data.id || data.status === "Out Of Stock"
+                                        ? "disabled"
+                                        : ""
+                                    }`}
+                                    title={
+                                      data.status === "Out Of Stock"
+                                        ? "Out of Stock"
+                                        : isItemInCart(getVariantId(data))
+                                        ? `Update Cart (${getCartItemQuantity(getVariantId(data))} in cart)`
+                                        : "Add To Cart"
+                                    }
+                                    onClick={() => {
+                                      if (data.status !== "Out Of Stock" && addingToCart !== data.id) {
+                                        handleCart(data);
+                                      }
+                                    }}
+                                    style={{
+                                      cursor:
+                                        addingToCart === data.id || data.status === "Out Of Stock"
+                                          ? "not-allowed"
+                                          : "pointer",
+                                      opacity:
+                                        addingToCart === data.id || data.status === "Out Of Stock"
+                                          ? 0.6
+                                          : 1,
+                                    }}
                                   >
-                                    <i className="fi-rr-shopping-basket"></i>
+                                    {addingToCart === data.id ? (
+                                      <i className="fi-rr-spinner"></i>
+                                    ) : isItemInCart(getVariantId(data)) ? (
+                                      <>
+                                        <i className="fi-rr-shopping-basket"></i>
+                                        <span style={{ 
+                                          fontSize: "10px", 
+                                          marginLeft: "3px",
+                                          fontWeight: "bold" 
+                                        }}>
+                                          +
+                                        </span>
+                                      </>
+                                    ) : (
+                                      <i className="fi-rr-shopping-basket"></i>
+                                    )}
                                   </a>
                                   <a
                                     onClick={() =>

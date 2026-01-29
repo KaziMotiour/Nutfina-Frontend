@@ -49,11 +49,6 @@ const vendordeshboard: vendor[] = [
     name: "Track Order",
     href: "/track-order",
     slug: "track-order"
-  },
-  {
-    name: "Invoice",
-    href: "/user-invoice",
-    slug: "user-invoice"
-  },
+  }
 ];
 export default vendordeshboard;

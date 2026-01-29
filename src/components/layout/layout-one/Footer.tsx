@@ -374,11 +374,10 @@ function Footer({ onSuccess = () => {}, onError = () => {} }) {
               </Row>
             </div>
           </div>
-          <div className="footer-bottom">
+          {/* <div className="footer-bottom">
             <div className="container">
               <div className="row">
                 <div className="gi-bottom-info">
-                  {/* <!-- Footer Copyright Start --> */}
                   <div className="footer-copy">
                     <div className="footer-bottom-copy ">
                       <div className="gi-copy">
@@ -389,9 +388,7 @@ function Footer({ onSuccess = () => {}, onError = () => {} }) {
                         all rights reserved. Powered by Grabit.
                       </div>
                     </div>
-                  </div>
-                  {/* <!-- Footer Copyright End -->
-                            <!-- Footer payment --> */}
+                  
                   <div className="footer-bottom-right">
                     <div className="footer-bottom-payment d-flex justify-content-center">
                       <div className="payment-link">
@@ -405,11 +402,10 @@ function Footer({ onSuccess = () => {}, onError = () => {} }) {
                       </div>
                     </div>
                   </div>
-                  {/* <!-- Footer payment --> */}
                 </div>
               </div>
             </div>
-          </div>
+          </div> */}
         </div>
       </footer>
       <ScrollButton />
