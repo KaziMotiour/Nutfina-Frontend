@@ -8,12 +8,25 @@ import list from "../../utility/header/list";
 import blog from "../../utility/header/blog";
 import pages from "../../utility/header/pages";
 import Collapse from 'react-bootstrap/Collapse';
+import { AppDispatch, RootState } from "@/store";
+import { useDispatch, useSelector } from "react-redux";
+import { logout } from "@/store/reducers/userSlice";
+import router from "next/router";
 
 const MobileManuSidebar = ({ isMobileMenuOpen, closeMobileManu, toggleMainMenu, activeMainMenu }) => {
   const [activeSubMenu, setActiveSubMenu] = useState<string | null>(null);
+  const dispatch = useDispatch<AppDispatch>();
 
+
+  const isAuthenticated = useSelector((state: RootState) => state.user?.isAuthenticated ?? false);
   const toggleSubMenu = (submenu: string) => {
     setActiveSubMenu((prevSubMenu) => (prevSubMenu === submenu ? null : submenu));
+  };
+
+  const HandleLogout = () => {
+    dispatch(logout());
+    router.push("/home");
+    window.location.reload();
   };
 
   return (
@@ -37,9 +50,7 @@ const MobileManuSidebar = ({ isMobileMenuOpen, closeMobileManu, toggleMainMenu, 
                 <li>
                   {/* <span onClick={() => toggleMainMenu('home')} className="menu-toggle"></span> */}
                   <Link
-                    href=""
-                    onClick={() => toggleMainMenu('home')}
-                    className="dropdown-arrow"
+                    href="/home"
                   >
                     Home
                   </Link>
@@ -168,7 +179,7 @@ const MobileManuSidebar = ({ isMobileMenuOpen, closeMobileManu, toggleMainMenu, 
                 </li> */}
                 <li className="dropdown">
                   {/* <span onClick={() => toggleMainMenu('blog')} className="menu-toggle"></span> */}
-                  <Link onClick={() => toggleMainMenu("blog")} href="#">
+                  <Link href="/blog-left-sidebar">
                     Blog
                   </Link>
                   {/* <Collapse in={activeMainMenu === "blog"} >
@@ -187,12 +198,20 @@ const MobileManuSidebar = ({ isMobileMenuOpen, closeMobileManu, toggleMainMenu, 
                     Customer Center
                   </Link>
                   <Collapse in={activeMainMenu === "pages"} >
-                    <ul style={{ display: activeMainMenu === "pages" ? "block" : "none" }} className="sub-menu height-transition-1s-ease">
-                      {pages.map((data, index) => (
-                        <li key={index}>
-                          <Link href={data.href}>{data.name}</Link>
-                        </li>
-                      ))}
+                  <ul style={{ display: activeMainMenu === "pages" ? "block" : "none" }} className="sub-menu height-transition-1s-ease">
+                    {pages
+                        .filter((data) => {
+                            // Hide "Address" and "Orders" if user is not authenticated
+                          if (!isAuthenticated && (data.name === "Address" || data.name === "Orders")) {
+                              return false;
+                            }
+                            return true;
+                          })
+                          .map((data, index) => (
+                            <li key={index}>
+                              <Link href={data.href}>{data.name}</Link>
+                            </li>
+                        ))}
                     </ul>
                   </Collapse>
                 </li>
@@ -205,25 +224,25 @@ const MobileManuSidebar = ({ isMobileMenuOpen, closeMobileManu, toggleMainMenu, 
                 <div className="header-top-social">
                   <ul className="mb-0">
                     <li className="list-inline-item">
-                      <Link href="#">
+                      <Link href="https://www.facebook.com/profile.php?id=61585264918348" target="_blank">
                         <i className="gicon gi-facebook"></i>
                       </Link>
                     </li>
-                    <li className="list-inline-item">
+                    {/* <li className="list-inline-item">
                       <Link href="#">
                         <i className="gicon gi-twitter"></i>
                       </Link>
-                    </li>
+                    </li> */}
                     <li className="list-inline-item">
-                      <Link href="#">
+                      <Link href="https://www.instagram.com/nutfina_/" target="_blank">
                         <i className="gicon gi-instagram"></i>
                       </Link>
                     </li>
-                    <li className="list-inline-item">
+                    {/* <li className="list-inline-item">
                       <Link href="#">
                         <i className="gicon gi-linkedin"></i>
                       </Link>
-                    </li>
+                    </li> */}
                   </ul>
                 </div>
               </div>
@@ -231,21 +250,26 @@ const MobileManuSidebar = ({ isMobileMenuOpen, closeMobileManu, toggleMainMenu, 
             </div>
             <div className="gi-menu-content" style={{ marginTop: 'auto', paddingTop: '15px' }}>
               <ul>
-              <li className="dropdown">
-                  <Link href="#" style={{ borderColor: '#5caf90' }}>
+              {!isAuthenticated && 
+                (<>
+                <li className="dropdown">
+                  <Link href="/login" style={{ borderColor: '#5caf90' }}>
                     Login
                   </Link>
                 </li>
+                
                 <li className="dropdown">
-                    <Link href="#" style={{ borderColor: '#5caf90' }}>
+                    <Link href="/register" style={{ borderColor: '#5caf90' }}>
                       Register
                     </Link>
                 </li>
-                <li className="dropdown">
-                    <Link href="#" style={{ borderColor: '#5caf90' }}>
+                </>
+                )}
+                {isAuthenticated && <li className="dropdown">
+                    <Link href="javascript:void(0)" onClick={() => HandleLogout()} style={{ borderColor: '#5caf90' }}>
                       Logout
                     </Link>
-                </li>
+                </li>}
               </ul>
             </div>
           </div>

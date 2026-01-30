@@ -3,14 +3,12 @@ import { Col, Row } from "react-bootstrap";
 import { Fade } from "react-awesome-reveal";
 import Spinner from "../button/Spinner";
 import { useState, useEffect, useMemo } from "react";
-import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "@/store";
 import { getCategory, getProducts, clearProducts, Product, ProductVariant } from "@/store/reducers/shopSlice";
 import ItemCard from "../product-item/ItemCard";
 
 const RoastedNuts = () => {
-    const [selectedIndex, setSelectedIndex] = useState(0);
     const dispatch = useDispatch<AppDispatch>();
     
     const { 
@@ -35,15 +33,12 @@ const RoastedNuts = () => {
             // Clear existing products to avoid showing products from other categories
             dispatch(clearProducts());
             dispatch(getProducts({ 
-                category: currentCategory.id, 
+                category: currentCategory.slug, 
                 is_active: true 
             }));
         }
     }, [currentCategory, dispatch]);
 
-    const handleProductClick = (index: number) => {
-        setSelectedIndex(index);
-    };
 
     // Transform backend product data to ItemCard format
     const transformedProducts = useMemo(() => {
@@ -153,84 +148,52 @@ const RoastedNuts = () => {
                 data-wow-duration="2s"
             >
                 <div className="container">
-                    <Tabs
-                        selectedIndex={selectedIndex}
-                        onSelect={(selectedIndex) => setSelectedIndex(selectedIndex)}
-                    >
-                        <div className="gi-tab-title">
-                            <div className="gi-main-title">
-                                <div className="section-title">
-                                    <div className="section-detail">
-                                        <h2 className="gi-title">
-                                            Roasted Nuts
-                                        </h2>
-                                        <p>A healthy snack for every one</p> 
-                                    </div>
+                    <div className="gi-tab-title">
+                        <div className="gi-main-title">
+                            <div className="section-title">
+                                <div className="section-detail">
+                                    <h2 className="gi-title">
+                                        Roasted Nuts
+                                    </h2>
+                                    <p>A healthy snack for every one</p> 
                                 </div>
                             </div>
-                            {/* <!-- Tab Start --> */}
-                            {/* <TabList className="gi-pro-tab">
-                                <ul className="gi-pro-tab-nav nav">
-                                    <Tab
-                                        style={{ outline: "none" }}
-                                        className="nav-item gi-header-rtl-arrival"
-                                        key={"nut-protein-powder"}
-                                    >
-                                        <a
-                                            className={`nav-link ${
-                                                selectedIndex == 0 ? "active" : ""
-                                            }`}
-                                            onClick={() => handleProductClick(0)}
-                                            data-bs-toggle="tab"
-                                            href="/products/?category=roasted-nuts"
-                                        >
-                                            All Roasted Nuts<i className="fi-rr-angle-double-small-right"></i>
-                                        </a>
-                                    </Tab>
-                                </ul>
-                            </TabList> */}
-                            {/* <!-- Tab End --> */}
                         </div>
-                        {/* <!-- New Product --> */}
-                        <Row className="m-b-minus-24px">
-                            <Col lg={12}>
-                                <div className="tab-content">
-                                    {/* <!-- 1st Product tab start --> */}
-                                    <TabPanel>
-                                        <Fade
-                                            triggerOnce
-                                            duration={400}
-                                            className={`tab-pane fade ${
-                                                selectedIndex === 0 ? "show active product-block" : ""
-                                            }`}
-                                        >
-                                            <Row>
-                                                {transformedProducts.length === 0 ? (
-                                                    <Col lg={12}>
-                                                        <div className="text-center py-5">
-                                                            <p>No roasted nuts products found.</p>
-                                                        </div>
-                                                    </Col>
-                                                ) : (
-                                                    transformedProducts.map((item: any, index: number) => (
-                                                        <Col
-                                                            key={item.id || index}
-                                                            md={4}
-                                                            lg={3}
-                                                            xl={2}
-                                                            className="col-sm-6 gi-product-box gi-col-4"
-                                                        >   
-                                                            <ItemCard data={item} showAddToCart={true} />
-                                                        </Col>
-                                                    ))
-                                                )}
-                                            </Row>
-                                        </Fade>
-                                    </TabPanel>
-                                </div>
-                            </Col>
-                        </Row>
-                    </Tabs>
+                    </div>
+                    {/* <!-- New Product --> */}
+                    <Row className="m-b-minus-24px">
+                        <Col lg={12}>
+                            <div className="tab-content">
+                                <Fade
+                                    triggerOnce
+                                    duration={400}
+                                    className="tab-pane fade show active product-block"
+                                >
+                                    <Row>
+                                        {transformedProducts.length === 0 ? (
+                                            <Col lg={12}>
+                                                <div className="text-center py-5">
+                                                    <p>No roasted nuts products found.</p>
+                                                </div>
+                                            </Col>
+                                        ) : (
+                                            transformedProducts.map((item: any, index: number) => (
+                                                <Col
+                                                    key={item.id || index}
+                                                    md={4}
+                                                    lg={3}
+                                                    xl={2}
+                                                    className="col-sm-6 gi-product-box gi-col-4"
+                                                >   
+                                                    <ItemCard data={item} showAddToCart={true} />
+                                                </Col>
+                                            ))
+                                        )}
+                                    </Row>
+                                </Fade>
+                            </div>
+                        </Col>
+                    </Row>
                 </div>
             </section>
         </>

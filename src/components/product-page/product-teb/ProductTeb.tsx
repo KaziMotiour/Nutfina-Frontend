@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Tab, TabList, Tabs } from "react-tabs";
+import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 import { Fade } from "react-awesome-reveal";
 import RatingComponent from "@/components/stars/RatingCompoents";
 import { useSelector, useDispatch } from "react-redux";
@@ -227,13 +227,14 @@ const ProductTeb = () => {
             </ul>
           </TabList>
           <div className="tab-content  gi-single-pro-tab-content">
-            <Fade
-              duration={1000}
-              className={`tab-pane fade ${
-                selectedIndex === 0 ? "show active" : ""
-              }`}
-            >
-              <div className="gi-single-pro-tab-desc">
+            <TabPanel>
+              <Fade
+                duration={1000}
+                className={`tab-pane fade ${
+                  selectedIndex === 0 ? "show active" : ""
+                }`}
+              >
+                <div className="gi-single-pro-tab-desc">
                 <p>
                   Lorem Ipsum is simply dummy text of the printing and
                   typesetting industry. Lorem Ipsum has been the industry s
@@ -275,9 +276,11 @@ const ProductTeb = () => {
                   Lorem Ipsum is therefore always free from repetition, injected
                   humour, or non-characteristic words etc.
                 </p>
-              </div>
-            </Fade>
-            {/* <Fade
+                </div>
+              </Fade>
+            </TabPanel>
+            {/* <TabPanel>
+              <Fade
               duration={1000}
               className={`tab-pane fade ${
                 selectedIndex === 1 ? "show active" : ""
@@ -360,13 +363,14 @@ const ProductTeb = () => {
                 </div>
               </div>
             </Fade> */}
-            <Fade
-              duration={1000}
-              className={`tab-pane fade ${
-                selectedIndex === 1 ? "show active" : ""
-              }`}
-            >
-              {!login ? (
+            <TabPanel>
+              <Fade
+                duration={1000}
+                className={`tab-pane fade ${
+                  selectedIndex === 1 ? "show active" : ""
+                }`}
+              >
+                {!login ? (
                 <div className="container">
                   <p>
                     Please <a href="/login">login</a> or{" "}
@@ -501,8 +505,9 @@ const ProductTeb = () => {
                     </div>
                   </div>
                 </div>
-              )}
-            </Fade>
+                )}
+              </Fade>
+            </TabPanel>
           </div>
         </div>
       </Tabs>

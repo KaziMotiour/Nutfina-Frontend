@@ -6,11 +6,11 @@ interface AlmondRoastedNuts {
 const AlmondRoastedNuts: AlmondRoastedNuts[] = [
     {
         name: "Salted",
-        href: "/shop-left-sidebar-col-3",
+        href: "/products/?category=roasted-nuts",
     },
     {
         name: "Honey black paper",
-        href: "/shop-left-sidebar-col-3",
+        href: "/products/?category=roasted-nuts",
     }
 ];
 

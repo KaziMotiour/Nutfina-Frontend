@@ -13,16 +13,19 @@ import snacks from "../../../../utility/header/snacks";
 import spice from "../../../../utility/header/spice";
 import juice from "../../../../utility/header/juice";
 import softdrink from "../../../../utility/header/softdrink";
-import CashewRoastedNuts from "../../../../utility/header/cashewroastednuts";
+import { CashewRoastedNuts, NutPowder } from "../../../../utility/header/cashewroastednuts";
 import AlmondRoastedNuts from "../../../../utility/header/almondroastednuts";
 import Link from "next/link";
 import productpage from "../../../../utility/header/productpage";
 import CurrentLocation from "./CurrentLocation";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 import { Fade } from "react-awesome-reveal";
+import { useSelector } from "react-redux";
+import { RootState } from "@/store";
 
 function HeaderManu() {
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const isAuthenticated = useSelector((state: RootState) => state.user.isAuthenticated);
 
   const handleProductClick = (index: number) => {
     setSelectedIndex(index);
@@ -154,23 +157,13 @@ function HeaderManu() {
                             <div className="col">
                               <h6 className="gi-col-title">Nut Powder</h6>
                               <ul className="cat-list">
-                                {CashewRoastedNuts.map((data, index) => (
+                                {NutPowder.map((data, index) => (
                                   <li key={index}>
                                     <Link href={data.href}>{data.name}</Link>
                                   </li>
                                 ))}
                               </ul>
                             </div>
-                            {/* <div className="col">
-                              <h6 className="gi-col-title">Almond Roasted Nuts</h6>
-                              <ul className="cat-list">
-                                {AlmondRoastedNuts.map((data, index) => (
-                                  <li key={index}>
-                                    <Link href={data.href}>{data.name}</Link>
-                                  </li>
-                                ))}
-                              </ul>
-                            </div> */}
                           </div>
                         </TabPanel>
                       </Fade>
@@ -315,7 +308,14 @@ function HeaderManu() {
                           Customer Center<i className="fi-rr-angle-small-right"></i>
                           </Link>
                           <ul className="sub-menu">
-                            {pages.map((data, index) => (
+                            {pages
+                            .filter((data) => {
+                              if (!isAuthenticated && (data.name === "Address" || data.name === "Orders")) {
+                                return false;
+                              }
+                              return true;
+                            })
+                            .map((data, index) => (
                               <li key={index}>
                                 <Link href={data.href}>{data.name}</Link>
                               </li>

@@ -4,19 +4,19 @@ interface Location {
   
   const location: Location[] = [
     {
-      name: "Los Angeles",
+      name: "Bengaldesh",
       
     },
     {
-      name: "Chicago",
+      name: "Malaysia",
       
     },
     {
-      name: "Houston",
+      name: "UAE",
       
     },
     {
-      name: "Phoenix",
+      name: "New York",
       
     },
     {

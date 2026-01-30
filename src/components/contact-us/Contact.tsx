@@ -34,7 +34,7 @@ const Contact = () => {
             </p>
           </div>
           <Row className="gi-contact-detail m-tb-minus-12">
-            <Col sm={6} lg={4} className="p-tp-12">
+            <Col sm={6} lg={6} className="p-tp-12">
               <div className="gi-box">
                 <div className="detail">
                   <div className="icon">
@@ -48,13 +48,13 @@ const Contact = () => {
                       <i className="fa fa-envelope" aria-hidden="true">
                         <FaEnvelope />
                       </i>{" "}
-                      &nbsp; mail.example@gmail.com
+                      &nbsp; nutfina.official@gmail.com
                     </p>
                     <p>
                       <i className="fa fa-globe" aria-hidden="true">
                         <FaGlobeAmericas />
                       </i>{" "}
-                      &nbsp; www.yourdomain.com
+                      &nbsp; www.nutfina.com
                     </p>
                   </div>
                 </div>
@@ -62,7 +62,7 @@ const Contact = () => {
               </div>
             </Col>
 
-            <Col sm={6} lg={4} className="p-tp-12">
+            <Col sm={6} lg={6} className="p-tp-12">
               <div className="gi-box">
                 <div className="detail">
                   <div className="icon">
@@ -76,13 +76,7 @@ const Contact = () => {
                       <i className="fa fa-mobile" aria-hidden="true">
                         <FaMobileAlt />
                       </i>{" "}
-                      &nbsp; (+91)-9876XXXXX
-                    </p>
-                    <p>
-                      <i className="fa fa-mobile" aria-hidden="true">
-                        <FaMobileAlt />
-                      </i>{" "}
-                      &nbsp; (+91)-987654XXXX
+                      &nbsp; +880 1736-320486
                     </p>
                   </div>
                 </div>
@@ -90,7 +84,7 @@ const Contact = () => {
               </div>
             </Col>
 
-            <Col sm={6} lg={4} className="p-tp-12 m-auto">
+            {/* <Col sm={6} lg={4} className="p-tp-12 m-auto">
               <div className="gi-box">
                 <div className="detail">
                   <div className="icon">
@@ -111,13 +105,11 @@ const Contact = () => {
                 </div>
                 <div className="space"></div>
               </div>
-            </Col>
+            </Col> */}
           </Row>
           <Row className="p-t-80">
-            <Col md={6}>
-              <iframe src="//maps.google.com/maps?q=-12.942227,-38.480291&z=15&output=embed"></iframe>
-            </Col>
-            <Col md={6}>
+            <Col md={{ span: 6, offset: 3 }}>
+              <h2 className="gi-title">Contact Us</h2>
               <Form noValidate validated={validated} onSubmit={handleSubmit}>
                 <Form.Group className="form-group">
                   <Form.Control

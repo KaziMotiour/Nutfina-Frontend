@@ -11,9 +11,9 @@ const Page = () => {
         <>
             <Breadcrumb title={"About Us"} />
             <About />
-            <Service />
-            <Testimonials />
-            <Facts />
+            {/* <Service /> */}
+            {/* <Testimonials /> */}
+            {/* <Facts /> */}
             <Team />
         </>
     )

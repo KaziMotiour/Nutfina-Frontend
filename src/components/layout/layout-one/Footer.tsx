@@ -62,16 +62,17 @@ function Footer({ onSuccess = () => {}, onError = () => {} }) {
                       <img
                         src={
                           process.env.NEXT_PUBLIC_URL +
-                          "/assets/img/logo/logo.png"
+                          "/assets/img/logo/nutfina-1.png"
                         }
                         className="gi-footer-logo"
                         alt="footer logo"
                       />
                       <p className="gi-footer-detail">
-                        Grabit is the biggest market of grocery products. Get
-                        your daily needs from our store.
+                        Nutfina | Pure Nuts, Honest Nutrition
+                        Roasted nuts made clean, fresh & simple.
+                        No shortcuts. Just real taste.
                       </p>
-                      <div className="gi-app-store">
+                      {/* <div className="gi-app-store">
                         <a href="#" className="app-img">
                           <img
                             src={
@@ -92,7 +93,7 @@ function Footer({ onSuccess = () => {}, onError = () => {} }) {
                             alt="apple"
                           />
                         </a>
-                      </div>
+                      </div> */}
                     </div>
                   </Fade>
                 </Col>
@@ -128,19 +129,12 @@ function Footer({ onSuccess = () => {}, onError = () => {} }) {
                         }}
                       >
                         <ul className="align-itegi-center">
-                          {CategoryData.map((data, index) => (
-                            <li key={index} className="gi-footer-link">
-                              <a
-                                style={{ textTransform: "capitalize" }}
-                                href="#"
-                                onClick={() =>
-                                  handleCategoryChange(data.category)
-                                }
-                              >
-                                {data.category}
-                              </a>
-                            </li>
-                          ))}
+                          <li className="gi-footer-link">
+                            <a href="/products/?category=roasted-nuts">Roasted Nuts</a>
+                          </li>
+                          <li className="gi-footer-link">
+                            <a href="/products/?category=protein-powder">Protein Powder</a>
+                          </li>
                         </ul>
                       </motion.div>
                     </div>
@@ -184,7 +178,7 @@ function Footer({ onSuccess = () => {}, onError = () => {} }) {
                           <li className="gi-footer-link">
                             <a href="/track-order">Delivery</a>
                           </li>
-                          <li className="gi-footer-link">
+                          {/* <li className="gi-footer-link">
                             <a href="/privacy-policy">Legal Notice</a>
                           </li>
                           <li className="gi-footer-link">
@@ -192,7 +186,7 @@ function Footer({ onSuccess = () => {}, onError = () => {} }) {
                           </li>
                           <li className="gi-footer-link">
                             <a href="/checkout">Secure payment</a>
-                          </li>
+                          </li> */}
                           <li className="gi-footer-link">
                             <a href="/contact-us">Contact us</a>
                           </li>
@@ -239,15 +233,9 @@ function Footer({ onSuccess = () => {}, onError = () => {} }) {
                           <li className="gi-footer-link">
                             <a href="/cart">View Cart</a>
                           </li>
-                          <li className="gi-footer-link">
+                          {/* <li className="gi-footer-link">
                             <a href="/privacy-policy">Return Policy</a>
-                          </li>
-                          <li className="gi-footer-link">
-                            <a href="#">Become a Vendor</a>
-                          </li>
-                          <li className="gi-footer-link">
-                            <a href="#">Affiliate Program</a>
-                          </li>
+                          </li> */}
                           <li className="gi-footer-link">
                             <a href="/checkout">Payments</a>
                           </li>
@@ -289,27 +277,18 @@ function Footer({ onSuccess = () => {}, onError = () => {} }) {
                           }}
                         >
                           <ul className="align-itegi-center">
-                            <li className="gi-footer-link gi-foo-location">
-                              <span>
-                                <i className="fi fi-rr-marker location svg_img foo_svg"></i>
-                              </span>
-                              <p>
-                                2548 Broaddus Maple Court, Madisonville KY 4783,
-                                USA.
-                              </p>
-                            </li>
                             <li className="gi-footer-link gi-foo-call">
                               <span>
                                 <i className="fi fi-brands-whatsapp svg_img foo_svg"></i>
                               </span>
-                              <a href="tel:+009876543210">+00 9876543210</a>
+                              <a href="javascript:void(0)">+880 1736-320486</a>
                             </li>
                             <li className="gi-footer-link gi-foo-mail">
                               <span>
                                 <i className="fi fi-rr-envelope"></i>
                               </span>
-                              <a href="mailto:example@email.com">
-                                example@email.com
+                              <a href="javascript:void(0)">
+                                nutfina.official@gmail.com
                               </a>
                             </li>
                           </ul>
@@ -334,7 +313,7 @@ function Footer({ onSuccess = () => {}, onError = () => {} }) {
                         >
                           <ul className="align-itegi-center">
                             <li className="gi-footer-link">
-                              <a href="#">
+                              <a href="https://www.facebook.com/profile.php?id=61585264918348" target="_blank">
                                 <i
                                   className="gicon gi-facebook"
                                   aria-hidden="true"
@@ -342,23 +321,7 @@ function Footer({ onSuccess = () => {}, onError = () => {} }) {
                               </a>
                             </li>
                             <li className="gi-footer-link">
-                              <a href="#">
-                                <i
-                                  className="gicon gi-twitter"
-                                  aria-hidden="true"
-                                ></i>
-                              </a>
-                            </li>
-                            <li className="gi-footer-link">
-                              <a href="#">
-                                <i
-                                  className="gicon gi-linkedin"
-                                  aria-hidden="true"
-                                ></i>
-                              </a>
-                            </li>
-                            <li className="gi-footer-link">
-                              <a href="#">
+                              <a href="https://www.instagram.com/nutfina_/" target="_blank">
                                 <i
                                   className="gicon gi-instagram"
                                   aria-hidden="true"

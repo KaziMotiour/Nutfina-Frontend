@@ -80,7 +80,7 @@ const Cart = ({
         const categoryArray = Array.from(categories);
         // Fetch products from the first category (or you could fetch from all)
         dispatch(getProducts({ 
-          category: categoryArray[0], 
+          category: categoryArray[0]?.toString(), 
           is_active: true,
           page: 1
         }));
@@ -510,12 +510,12 @@ const Cart = ({
                   data-aos-duration="2000"
                   data-aos-delay="200"
                 >
-                  <>
+                  <div className="section-title-2">
                     <h2 className="gi-title">
                       You May <span>Like</span>
                     </h2>
                     <p>Discover More Products You Might Enjoy</p>
-                  </>
+                  </div>
                 </Fade>
                 <Fade
                   triggerOnce

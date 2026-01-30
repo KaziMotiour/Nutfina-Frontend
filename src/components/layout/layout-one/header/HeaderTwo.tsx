@@ -61,11 +61,12 @@ function HeaderTwo({ cartItemCount, wishlistItems }: { cartItemCount: number; wi
                     <img
                       src={
                         process.env.NEXT_PUBLIC_URL +
-                        "/assets/img/logo/logo2.png"
+                        "/assets/img/logo/nutfina-1.png"
                       }
                       alt="Site Logo"
                       // style={{
-                      //   filter: 'sepia(100%) saturate(200%) hue-rotate(180deg) brightness(0.6)'                    
+                      //   width: "%",
+                      //   height: "auto",
                       // }}
                     />
                   </Link>

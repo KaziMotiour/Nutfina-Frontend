@@ -190,7 +190,7 @@ export const deleteCategory = createAsyncThunk(
 export const getProducts = createAsyncThunk(
   "shop/getProducts",
   async (params: {
-    category?: number;
+    category?: string;
     is_active?: boolean;
     is_featured?: boolean;
     search?: string;
@@ -198,6 +198,7 @@ export const getProducts = createAsyncThunk(
   }, { rejectWithValue }) => {
     try {
       const queryParams = new URLSearchParams();
+      console.log("params", params);
       if (params?.category) queryParams.append("category", String(params.category));
       if (params?.is_active !== undefined) queryParams.append("is_active", String(params.is_active));
       if (params?.is_featured !== undefined) queryParams.append("is_featured", String(params.is_featured));

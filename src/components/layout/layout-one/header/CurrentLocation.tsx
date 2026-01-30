@@ -3,7 +3,7 @@ import { useState } from "react";
 import location from "../../../../utility/header/location";
 
 function CurrentLocation({}) {
-  const [current, setCurrent] = useState("New York");
+  const [current, setCurrent] = useState("Bengaldesh");
 
   return (
     <>

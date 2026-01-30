@@ -13,6 +13,7 @@ import {
   setSortOption,
 } from "@/store/reducers/filterReducer";
 import { getProducts, Product } from "@/store/reducers/shopSlice";
+import { useSearchParams } from "next/navigation";
 
 const FullWidth = ({
   xl,
@@ -26,6 +27,8 @@ const FullWidth = ({
   const [isGridView, setIsGridView] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const dispatch = useDispatch<AppDispatch>();
+  const searchParams = useSearchParams();
+  
   const {
     selectedCategory,
     selectedWeight,
@@ -43,19 +46,30 @@ const FullWidth = ({
     (state: RootState) => state.shop
   );
 
+  // Read category from URL params
+  const urlCategory = searchParams.get("category");
+
   // Prepare API params for fetching products
   const productParams = useMemo(
-    () => ({
-      is_active: true,
-      page: currentPage,
-      search: searchTerm || undefined,
-      // Add category filter if selected
-      ...(selectedCategory.length > 0 && { category: parseInt(selectedCategory[0]) }),
-    }),
+    () => {
+      // Prioritize URL category over Redux state
+      console.log("urlCategory", urlCategory);
+      const categoryId = urlCategory 
+        
+      
+      return {
+        is_active: true,
+        page: currentPage,
+        search: searchTerm || undefined,
+        // Add category filter if available from URL or Redux state
+        ...(urlCategory && { category: urlCategory }),
+      };
+    },
     [
       currentPage,
       searchTerm,
       selectedCategory,
+      urlCategory,
     ]
   );
 
@@ -77,6 +91,7 @@ const FullWidth = ({
 
   // Fetch products when params change
   useEffect(() => {
+    console.log(productParams);
     dispatch(getProducts(productParams));
   }, [dispatch, productParams]);
 

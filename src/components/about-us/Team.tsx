@@ -72,7 +72,7 @@ const Team = ({
                   <img src={item.image} alt="user" />
                   <div className="gi-team-socials">
                     <ul className="align-itegi-center">
-                      <li className="gi-social-link">
+                      {/* <li className="gi-social-link">
                         <a href="#">
                           <i
                             className="gicon gi-twitter"
@@ -95,7 +95,7 @@ const Team = ({
                             aria-hidden="true"
                           ></i>
                         </a>
-                      </li>
+                      </li> */}
                     </ul>
                   </div>
                 </div>

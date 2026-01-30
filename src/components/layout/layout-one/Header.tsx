@@ -29,7 +29,7 @@ function Header() {
 
       <header className="gi-header">
         <FeatureTools />
-        <HeaderOne wishlistItems={wishlistItems} cartItemCount={cartItemCount} />
+        {/* <HeaderOne wishlistItems={wishlistItems} cartItemCount={cartItemCount} /> */}
         <HeaderTwo cartItemCount={cartItemCount} wishlistItems={wishlistItems} />
         <HeaderManu />
       </header>

@@ -298,7 +298,7 @@ const SingleProductContent = ({
                     </div>
                     {currentOldPrice && currentOldPrice > currentPrice && (
                         <div className="mrp">
-                        M.R.P. : <span>${currentOldPrice.toFixed(2)}</span>
+                        M.R.P. : <span>{currentOldPrice.toFixed(2)} BDT</span>
                         </div>
                     )}
                     </div>

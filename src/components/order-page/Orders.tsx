@@ -180,9 +180,9 @@ const OrderPage = () => {
                           </tr>
                         </thead>
                         <tbody className="wish-empt">
-                          {orders.map((order: Order) => (
+                          {orders.map((order: Order, index: number) => (
                             <tr
-                              key={order.id}
+                              key={index}
                               style={{ cursor: "pointer" }}
                               className="pro-gl-content"
                             >

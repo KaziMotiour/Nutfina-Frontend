@@ -172,7 +172,7 @@ const CheckOut = ({
       email: "",
       phone: "",
       full_address: "",
-      country: "",
+      country: "BD", // Default to Bangladesh
       district: "",
       postal_code: "",
       is_default: false,
@@ -390,7 +390,7 @@ const CheckOut = ({
             email: "",
             phone: "",
             full_address: "",
-            country: "",
+            country: "BD", // Default to Bangladesh
             district: "",
             postal_code: "",
             is_default: false,
@@ -723,207 +723,8 @@ const CheckOut = ({
             </div>
           ) : (
             <Row>
-              {/* <!-- Sidebar Area Start --> */}
-              <Col lg={4} md={12} className="gi-checkout-rightside">
-                <div className="gi-sidebar-wrap">
-                  {/* <!-- Sidebar Summary Block --> */}
-                  <div className="gi-sidebar-block">
-                    <div className="gi-sb-title">
-                      <h3 className="gi-sidebar-title">Summary</h3>
-                    </div>
-                    <div className="gi-sb-block-content">
-                      <div className="gi-checkout-summary">
-                        <div>
-                          <span className="text-left">Sub-Total</span>
-                          <span className="text-right">
-                            {subTotal.toFixed(2)} BDT
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-left">Delivery Charges</span>
-                          <span className="text-right">Free</span>
-                        </div>
-                        <div>
-                          <DiscountCoupon
-                            subtotal={subTotal}
-                            onDiscountApplied={handleDiscountApplied}
-                          />
-                        </div>
-                        <div className="gi-checkout-summary-total">
-                          <span className="text-left">Total Amount</span>
-                          <span className="text-right">
-                            {total.toFixed(2)} BDT
-                          </span>
-                        </div>
-                      </div>
-                      <div className="gi-checkout-pro">
-                      <span className="text-left">Items</span>
-                      {cartItems.map((item: any, index: number) => (
-                          <div 
-                            key={index} 
-                            style={{
-                              display: "flex",
-                              justifyContent: "space-between",
-                              alignItems: "center",
-                              padding: "10px 0",
-                              borderBottom: index < cartItems.length - 1 ? "1px solid #eee" : "none",
-                            }}
-                          >
-                            <div style={{ flex: 1 }}>
-                              <h6 style={{ margin: 0, fontSize: "14px", fontWeight: "500" }}>
-                                {item.title} ({item.quantity}x)
-                              </h6>
-                            </div>
-                            <div style={{ textAlign: "right" }}>
-                              <span style={{ fontSize: "14px", fontWeight: "600", color: "#333" }}>
-                                {item.line_total.toFixed(2)} BDT
-                              </span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                  {/* <!-- Sidebar Summary Block --> */}
-                </div>
-                {/* <div className="gi-sidebar-wrap gi-checkout-del-wrap"> */}
-                  {/* <!-- Sidebar Summary Block --> */}
-                  {/* <div className="gi-sidebar-block">
-                    <div className="gi-sb-title">
-                      <h3 className="gi-sidebar-title">Delivery Method</h3>
-                    </div>
-                    <div className="gi-sb-block-content">
-                      <div className="gi-checkout-del">
-                        <div className="gi-del-desc">
-                          Please select the preferred shipping method to use on
-                          this order.
-                        </div>
-                        <form action="#">
-                          <span className="gi-del-option">
-                            <span>
-                              <span className="gi-del-opt-head">
-                                Free Shipping
-                              </span>
-                              <input
-                                type="radio"
-                                id="del1"
-                                name="radio-group"
-                                value="free"
-                                checked={selectedMethod === "free"}
-                                onChange={handleDeliveryChange}
-                              />
-                              <label htmlFor="del1">Rate - 0.00 BDT</label>
-                            </span>
-                            <span>
-                              <span className="gi-del-opt-head">Flat Rate</span>
-                              <input
-                                type="radio"
-                                id="del2"
-                                name="radio-group"
-                                value="flat"
-                                checked={selectedMethod === "flat"}
-                                onChange={handleDeliveryChange}
-                              />
-                              <label htmlFor="del2">Rate - 5.00 BDT</label>
-                            </span>
-                          </span>
-                          <span className="gi-del-comment">
-                            <span className="gi-del-opt-head">
-                              Add Comments About Your Order
-                            </span>
-                            <textarea
-                              name="your-comment"
-                              placeholder="Comments"
-                            ></textarea>
-                          </span>
-                        </form>
-                      </div>
-                    </div>
-                  </div> */}
-                  {/* <!-- Sidebar Summary Block --> */}
-                {/* </div> */}
-                <div className="gi-sidebar-wrap gi-checkout-pay-wrap">
-                  {/* <!-- Sidebar Payment Block --> */}
-                  <div className="gi-sidebar-block">
-                    <div className="gi-sb-title">
-                      <h3 className="gi-sidebar-title">Payment Method</h3>
-                    </div>
-                    <div className="gi-sb-block-content">
-                      <div className="gi-checkout-pay">
-                        <div className="gi-pay-desc">
-                          Please select the preferred payment method to use on
-                          this order.
-                        </div>
-                        <form action="#">
-                          <span className="gi-pay-option">
-                            <span>
-                              <input
-                                readOnly
-                                type="radio"
-                                id="pay1"
-                                name="radio-group"
-                                value=""
-                                checked
-                              />
-                              <label htmlFor="pay1">Cash On Delivery</label>
-                            </span>
-                          </span>
-                          <span className="gi-pay-commemt">
-                            <span className="gi-pay-opt-head">
-                              Add Comments About Your Order
-                            </span>
-                            <textarea
-                              name="your-commemt"
-                              placeholder="Comments"
-                            ></textarea>
-                          </span>
-                          {/* <span className="gi-pay-agree">
-                            <input
-                              ref={checkboxRef}
-                              required
-                              checked={isTermsChecked}
-                              onChange={() =>
-                                setIsTermsChecked(!isTermsChecked)
-                              }
-                              type="checkbox"
-                              value=""
-                            />
-                            <a href="#">
-                              I have read and agree to the{" "}
-                              <span>Terms & Conditions.</span>
-                            </a>
-                            <span className="checked"></span>
-                          </span> */}
-                        </form>
-                      </div>
-                    </div>
-                  </div>
-                  {/* <!-- Sidebar Payment Block --> */}
-                </div>
-                {/* <div className="gi-sidebar-wrap gi-check-pay-img-wrap"> */}
-                  {/* <!-- Sidebar Payment Block --> */}
-                  {/* <div className="gi-sidebar-block">
-                    <div className="gi-sb-title">
-                      <h3 className="gi-sidebar-title">Payment Method</h3>
-                    </div>
-                    <div className="gi-sb-block-content">
-                      <div className="gi-check-pay-img-inner">
-                        <div className="gi-check-pay-img">
-                          <img
-                            src={
-                              process.env.NEXT_PUBLIC_URL +
-                              "/assets/img/hero-bg/payment.png"
-                            }
-                            alt="payment"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div> */}
-                  {/* <!-- Sidebar Payment Block --> */}
-                {/* </div> */}
-              </Col>
-              <Col lg={8} md={12} className="gi-checkout-leftside m-t-991">
+              {/* <!-- Address Form - Left Side (Desktop), Top (Mobile) --> */}
+              <Col lg={8} md={12} className="gi-checkout-leftside order-1 order-lg-1">
                 {/* <!-- checkout content Start --> */}
                 <div className="gi-checkout-content">
                   <div className="gi-checkout-inner">
@@ -1526,24 +1327,133 @@ const CheckOut = ({
                         </div>
                       </div>
                     )}
-                    {billingVisible && (
-                      <span className="gi-check-order-btn">
-                        <button
-                          onClick={handleCheckout}
-                          className="gi-btn-2"
-                          disabled={isCheckoutDisabled()}
-                          style={{
-                            opacity: isCheckoutDisabled() ? 0.6 : 1,
-                            cursor: isCheckoutDisabled() ? "not-allowed" : "pointer",
-                          }}
-                        >
-                          Place Order
-                        </button>
-                      </span>
-                    )}
                   </div>
                 </div>
                 {/* <!--cart content End --> */}
+              </Col>
+              
+              {/* <!-- Summary & Payment - Right Side (Desktop), Middle & Bottom (Mobile) --> */}
+              <Col lg={4} md={12} className="gi-checkout-rightside order-2 order-lg-2">
+                <div className="gi-sidebar-wrap">
+                  {/* <!-- Sidebar Summary Block --> */}
+                  <div className="gi-sidebar-block">
+                    <div className="gi-sb-title">
+                      <h3 className="gi-sidebar-title">Summary</h3>
+                    </div>
+                    <div className="gi-sb-block-content">
+                      <div className="gi-checkout-summary">
+                        <div>
+                          <span className="text-left">Sub-Total</span>
+                          <span className="text-right">
+                            {subTotal.toFixed(2)} BDT
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-left">Delivery Charges</span>
+                          <span className="text-right">Free</span>
+                        </div>
+                        <div>
+                          <DiscountCoupon
+                            subtotal={subTotal}
+                            onDiscountApplied={handleDiscountApplied}
+                          />
+                        </div>
+                        <div className="gi-checkout-summary-total">
+                          <span className="text-left">Total Amount</span>
+                          <span className="text-right">
+                            {total.toFixed(2)} BDT
+                          </span>
+                        </div>
+                      </div>
+                      <div className="gi-checkout-pro">
+                      <span className="text-left">Items</span>
+                      {cartItems.map((item: any, index: number) => (
+                          <div 
+                            key={index} 
+                            style={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center",
+                              padding: "10px 0",
+                              borderBottom: index < cartItems.length - 1 ? "1px solid #eee" : "none",
+                            }}
+                          >
+                            <div style={{ flex: 1 }}>
+                              <h6 style={{ margin: 0, fontSize: "14px", fontWeight: "500" }}>
+                                {item.title} ({item.quantity}x)
+                              </h6>
+                            </div>
+                            <div style={{ textAlign: "right" }}>
+                              <span style={{ fontSize: "14px", fontWeight: "600", color: "#333" }}>
+                                {item.line_total.toFixed(2)} BDT
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  {/* <!-- Sidebar Summary Block --> */}
+                </div>
+                
+                <div className="gi-sidebar-wrap gi-checkout-pay-wrap">
+                  {/* <!-- Sidebar Payment Block --> */}
+                  <div className="gi-sidebar-block">
+                    <div className="gi-sb-title">
+                      <h3 className="gi-sidebar-title">Payment Method</h3>
+                    </div>
+                    <div className="gi-sb-block-content">
+                      <div className="gi-checkout-pay">
+                        <div className="gi-pay-desc">
+                          Please select the preferred payment method to use on
+                          this order.
+                        </div>
+                        <form action="#">
+                          <span className="gi-pay-option">
+                            <span>
+                              <input
+                                readOnly
+                                type="radio"
+                                id="pay1"
+                                name="radio-group"
+                                value=""
+                                checked
+                              />
+                              <label htmlFor="pay1">Cash On Delivery</label>
+                            </span>
+                          </span>
+                          <span className="gi-pay-commemt">
+                            <span className="gi-pay-opt-head">
+                              Add Comments About Your Order
+                            </span>
+                            <textarea
+                              name="your-commemt"
+                              placeholder="Comments"
+                            ></textarea>
+                          </span>
+                        </form>
+                      </div>
+                    </div>
+                  </div>
+                  {/* <!-- Place Order Button at bottom of Payment Section --> */}
+                  {billingVisible && (
+                    <div style={{ padding: "20px", textAlign: "right" }}>
+                      <button
+                        onClick={handleCheckout}
+                        className="gi-btn-2"
+                        disabled={isCheckoutDisabled()}
+                        style={{
+                          width: "100%",
+                          opacity: isCheckoutDisabled() ? 0.6 : 1,
+                          cursor: isCheckoutDisabled() ? "not-allowed" : "pointer",
+                        }}
+                      >
+                        Place Order
+                      </button>
+                    </div>
+                  )}
+                  {/* <!-- Sidebar Payment Block --> */}
+                </div>
               </Col>
             </Row>
           )}

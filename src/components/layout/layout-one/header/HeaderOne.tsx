@@ -59,7 +59,7 @@ function HeaderOne({ cartItemCount, wishlistItems }: { cartItemCount: number; wi
                         <!-- Header Top Message Start --> */}
             <div className="col text-center header-top-center">
               <div className="header-top-message">
-                World`s Fastest Online Shopping Destination
+                {/* World`s Fastest Online Shopping Destination */}
               </div>
             </div>
             {/* <!-- Header Top Message End -->
