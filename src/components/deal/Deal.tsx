@@ -9,7 +9,7 @@ import ItemCard from "../product-item/ItemCard";
 import { Fade } from "react-awesome-reveal";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "../../store";
-import { getProducts, Product, ProductVariant } from "../../store/reducers/shopSlice";
+import { getFeaturedProducts, Product, ProductVariant } from "../../store/reducers/shopSlice";
 import DealendTimer from "../dealend-timer/DealendTimer";
 import Spinner from "../button/Spinner";
 import { useEffect } from "react";
@@ -24,17 +24,17 @@ const Deal = ({
   const prevButtonRef = useRef<HTMLButtonElement>(null);
   const nextButtonRef = useRef<HTMLButtonElement>(null);
 
-  const { products, loading, error } = useSelector((state: RootState) => state.shop);
+  const { featuredProducts, loading, error } = useSelector((state: RootState) => state.shop);
 
   useEffect(() => {
-    dispatch(getProducts({ is_featured: true, is_active: true }));
+    dispatch(getFeaturedProducts());
   }, [dispatch]);
 
   // Transform backend product data to ItemCard format
   const transformedProducts = useMemo(() => {
-    if (!products || products.length === 0) return [];
+    if (!featuredProducts || featuredProducts.length === 0) return [];
 
-    return products.map((product: Product) => {
+    return featuredProducts.map((product: Product) => {
       // Get the first variant (preferably featured) or use base price
       const firstVariant = product.variants && product.variants.length > 0 
         ? product.variants[0] 
@@ -79,6 +79,7 @@ const Deal = ({
       })
       return {
         id: product.id,
+        variant_id: firstVariant?.id || null,
         title: product.name,
         newPrice: price,
         oldPrice: oldPrice || price,
@@ -89,23 +90,22 @@ const Deal = ({
         status: firstVariant?.is_active ? "Available" : "Out of Stock",
         rating: 5, // Default rating, can be added to backend later
         weight: firstVariant?.weight_grams 
-          ? `${(firstVariant.weight_grams / 1000).toFixed(1)}kg` 
-          : "N/A",
+          ? (firstVariant.weight_grams < 1000 
+            ? `${firstVariant.weight_grams}g` 
+            : `${(firstVariant.weight_grams / 1000).toFixed(1)}kg`)
+        : "N/A",
         sku: firstVariant?.sku || product.id,
         quantity: 1,
         date: product.created,
         location: "Bangladesh",
         brand: categoryName,
-        waight: firstVariant?.weight_grams 
-          ? `${(firstVariant.weight_grams / 1000).toFixed(1)}kg` 
-          : "N/A",
         options: options,
       };
     });
-  }, [products]);
+  }, [featuredProducts]);
 
-  if (error) return <div>Failed to load products</div>;
-  if (loading || !products)
+  if (error) return <div>Failed to load featured products</div>;
+  if (loading || !featuredProducts)
     return (
       <div>
         <Spinner />
@@ -119,7 +119,7 @@ const Deal = ({
   // Show message if no featured products
   if (transformedProducts.length === 0) {
     return (
-      <section className="gi-deal-section padding-tb-40 wow fadeInUp" data-wow-duration="2s">
+      <section className="gi-deal-section padding-tb-40 wow fadeInUp">
         <div className="container">
           <Row className="overflow-hidden m-b-minus-24px">
             <Col lg={12} className="gi-deal-section col-lg-12">
@@ -183,7 +183,6 @@ const Deal = ({
                       <p>Don`t wait. The time will never be just right.</p>
                     </div>
                   </Fade>
-                  <DealendTimer />
                 </div>
                 <Fade
                   triggerOnce
@@ -246,7 +245,7 @@ const Deal = ({
                         grabCursor={true}
                       >
                         {getData()?.map((item: any, index: number) => (
-                          <SwiperSlide key={item.id} className="slick-slide">
+                          <SwiperSlide key={index} className="slick-slide">
                             <ItemCard data={item} />
                           </SwiperSlide>
                         ))}

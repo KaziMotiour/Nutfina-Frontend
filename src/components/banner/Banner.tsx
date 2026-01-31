@@ -24,7 +24,7 @@ const Banner = () => {
                 <div className="gi-bnr-detail">
                   <div className="gi-bnr-info">
                     <h2>
-                      Nut Protein Powder<br></br>Healthy Products
+                      Nut Nutrition Powder<br></br>Healthy Products
                     </h2>
                     <h3>
                       10% off sale <span>Hurry up!!!</span>

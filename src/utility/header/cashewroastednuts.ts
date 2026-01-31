@@ -21,11 +21,11 @@ const CashewRoastedNuts: CashewRoastedNuts[] = [
 const NutPowder = [
     {
         name: "Cashew Nut Powder",
-        href: "/products/?category=protein-powder",
+        href: "/products/?category=nutrition-powder",
     },
     {
         name: "Almond Nut Powder",
-        href: "/products/?category=protein-powder",
+        href: "/products/?category=nutrition-powder",
     },
 ]
 

@@ -35,7 +35,7 @@ const NutPowder = () => {
                 <div className="section-title">
                   <div className="section-detail">
                     <h2 className="gi-title">
-                      Nut Protein Powder
+                      Nut Nutrition Powder
                     </h2>
                     <p>A healthy drink for every one</p>
                   </div>
@@ -47,7 +47,7 @@ const NutPowder = () => {
                   <Tab
                     style={{ outline: "none" }}
                     className="nav-item gi-header-rtl-arrival"
-                    key={"nut-protein-powder"}
+                    key={"nut-nutrition-powder"}
                   >
                     <a
                       className={`nav-link ${
@@ -55,9 +55,9 @@ const NutPowder = () => {
                       }`}
                       onClick={() => handleProductClick(0)}
                       data-bs-toggle="tab"
-                      href="/products/?category=protein-powder"
+                      href="/products/?category=nutrition-powder"
                     >
-                      All Nut Protein Powder<i className="fi-rr-angle-double-small-right"></i>
+                      All Nut Nutrition Powder<i className="fi-rr-angle-double-small-right"></i>
                     </a>
                   </Tab>
                 </ul>

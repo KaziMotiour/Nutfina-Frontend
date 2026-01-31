@@ -48,6 +48,7 @@ const FullWidth = ({
 
   // Read category from URL params
   const urlCategory = searchParams.get("category");
+  const urlSearch = searchParams.get("search");
 
   // Prepare API params for fetching products
   const productParams = useMemo(
@@ -60,7 +61,7 @@ const FullWidth = ({
       return {
         is_active: true,
         page: currentPage,
-        search: searchTerm || undefined,
+        search: urlSearch || undefined,
         // Add category filter if available from URL or Redux state
         ...(urlCategory && { category: urlCategory }),
       };
@@ -209,7 +210,6 @@ const FullWidth = ({
       <Row>
         <Col
           lg={lg}
-          md={2}
           className={`margin-b-30 gi-shop-rightside margin-b-30`}
         >
           {/* <!-- Shop Top Start --> */}
@@ -295,6 +295,7 @@ const FullWidth = ({
                       <ShopProductItem
                         isGridView={isGridView}
                         xl={xl}
+                        lg={lg}
                         classCol={classCol}
                         data={item}
                         key={item.id || index}

@@ -7,9 +7,7 @@ const CategoryItem = ({ data }) => {
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    const currentCategory = searchParams.get("category");
     // const isActive = currentCategory === data.categoryName;
-    console.log(currentCategory);
   }, [searchParams]);
 
   return (
@@ -27,7 +25,7 @@ const CategoryItem = ({ data }) => {
         <div className="gi-cat-detail">
           
             <h4 className="gi-cat-title">{data.name}</h4>
-          <p className="items">{data.item} Items</p>
+          {/* <p className="items">{data.item} Items</p> */}
         </div>
       </div>
     </Link>

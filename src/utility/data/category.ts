@@ -3,7 +3,7 @@ interface Category {
   persantine: string;
   icon: string;
   image: string;
-  item: number;
+  item?: number;
   num: number;
   categoryName: string;
 }
@@ -14,7 +14,6 @@ const category: Category[] = [
     icon: "fi fi-tr-peach",
     image: "/assets/img/category/nuts-2.png",
     name: "Roasted Nuts",
-    item: 320,
     num: 1,
     categoryName: "roasted-nuts"
   },
@@ -22,10 +21,9 @@ const category: Category[] = [
     persantine: "",
     icon: "fi fi-tr-protein-powder",
     image: "/assets/img/category/protein-powder.png",
-    name: "Protein Powder",
-    item: 65,
+    name: "Nutrition Powder",
     num: 2,
-    categoryName: "protein-powder"
+    categoryName: "nutrition-powder"
   },
   // {
   //   persantine: "15%",

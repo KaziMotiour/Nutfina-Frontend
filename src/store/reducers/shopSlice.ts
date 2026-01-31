@@ -83,6 +83,7 @@ export interface Inventory {
 export interface ShopState {
   categories: Category[];
   products: Product[];
+  featuredProducts: Product[];
   productVariants: ProductVariant[];
   inventory: Inventory[];
   currentProduct: Product | null;
@@ -99,6 +100,7 @@ export interface ShopState {
 const initialState: ShopState = {
   categories: [],
   products: [],
+  featuredProducts: [],
   productVariants: [],
   inventory: [],
   currentProduct: null,
@@ -198,13 +200,11 @@ export const getProducts = createAsyncThunk(
   }, { rejectWithValue }) => {
     try {
       const queryParams = new URLSearchParams();
-      console.log("params", params);
       if (params?.category) queryParams.append("category", String(params.category));
       if (params?.is_active !== undefined) queryParams.append("is_active", String(params.is_active));
       if (params?.is_featured !== undefined) queryParams.append("is_featured", String(params.is_featured));
       if (params?.search) queryParams.append("search", params.search);
       if (params?.page) queryParams.append("page", String(params.page));
-      
       const url = `/shop/products/${queryParams.toString() ? `?${queryParams}` : ""}`;
       const response = await apiCall(url);
       return response;
@@ -220,9 +220,20 @@ export const getProduct = createAsyncThunk(
     try {
       const response = await apiCall(`/shop/products/${slug}/`);
       return response;
-      console.log('response', response);
     } catch (error: any) {
       return rejectWithValue(error.message || "Failed to get product");
+    }
+  }
+);
+
+export const getFeaturedProducts = createAsyncThunk(
+  "shop/getFeaturedProducts",
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await apiCall("/shop/products/featured/");
+      return Array.isArray(response) ? response : response.results || [];
+    } catch (error: any) {
+      return rejectWithValue(error.message || "Failed to get featured products");
     }
   }
 );
@@ -535,6 +546,18 @@ const shopSlice = createSlice({
       })
       .addCase(deleteProduct.fulfilled, (state, action) => {
         state.products = state.products.filter((p) => p.slug !== action.payload);
+      })
+      .addCase(getFeaturedProducts.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(getFeaturedProducts.fulfilled, (state, action) => {
+        state.loading = false;
+        state.featuredProducts = action.payload;
+      })
+      .addCase(getFeaturedProducts.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
       });
 
     // Product Variants

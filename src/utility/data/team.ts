@@ -18,7 +18,7 @@ const team: Team[] = [
   {
     image: process.env.NEXT_PUBLIC_URL + "/assets/img/user/rafa.jpg",
     name: "Shohag Alamin",
-    title: "Content creator",
+    title: "Digital creator",
   },
   {
     image: process.env.NEXT_PUBLIC_URL + "/assets/img/user/md-shafiur-rahman.jpg",

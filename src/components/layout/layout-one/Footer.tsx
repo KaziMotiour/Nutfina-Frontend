@@ -133,7 +133,7 @@ function Footer({ onSuccess = () => {}, onError = () => {} }) {
                             <a href="/products/?category=roasted-nuts">Roasted Nuts</a>
                           </li>
                           <li className="gi-footer-link">
-                            <a href="/products/?category=protein-powder">Protein Powder</a>
+                            <a href="/products/?category=nutrition-powder">Nutrition Powder</a>
                           </li>
                         </ul>
                       </motion.div>

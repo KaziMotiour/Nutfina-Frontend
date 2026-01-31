@@ -57,9 +57,9 @@ const OfferBanners = () => {
                     />
                   </div>
                   <div className="gi-bnr-detail">
-                    <h5>Nut Protein Powder</h5>
+                    <h5>Nut Nutrition Powder</h5>
                     <p>A healthy drink for every one</p>
-                    <Link href="/products/?category=protein-powder" className="gi-btn-2">
+                    <Link href="/products/?category=nutrition-powder" className="gi-btn-2">
                       Shop Now
                     </Link>
                   </div>

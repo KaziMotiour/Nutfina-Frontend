@@ -49,8 +49,8 @@ const shopitem: Item[] = [
     image: process.env.NEXT_PUBLIC_URL + "/assets/img/product-images/3_1.jpg",
     imageTwo:
       process.env.NEXT_PUBLIC_URL + "/assets/img/product-images/3_1.jpg",
-    category: "protein-powder",
-    categoryName: "Protein Powder",
+    category: "nutrition-powder",
+    categoryName: "Nutrition Powder",
     weight: "10kg",
     newPrice: 25.0,
     oldPrice: 30.0,

@@ -219,8 +219,8 @@
                   <span className="gi-price">
                       <div className="row">
                           <div className="col-12 mb-2">
-                              <span className="new-price">${data.newPrice}.00</span>
-                              <span className="old-price">${data.oldPrice}.00</span>
+                              <span className="new-price">{data.newPrice}.00 BDT</span>
+                              {data.sale &&<span className="old-price">{data.oldPrice}.00 BDT</span>}
                           </div>
                       </div>
                   </span>

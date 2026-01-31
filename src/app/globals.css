@@ -7,6 +7,32 @@
 @import url("/assets/css/style.css");
 @import url("/assets/css/responsive.css");
 
+/* Enable text selection across the site */
+body,
+p,
+span,
+div,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+li,
+td,
+th,
+label,
+input[type="text"],
+input[type="email"],
+input[type="number"],
+input[type="tel"],
+textarea {
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  -ms-user-select: text !important;
+  user-select: text !important;
+}
+
 .none {
   display: none;
 }

@@ -1,18 +1,14 @@
 "use client";
 import React, { useEffect, useRef, useState } from "react";
-import { Swiper, SwiperSlide } from "swiper/react";
-import ItemCard from "../product-item/ItemCard";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState, AppDispatch } from "../../store";
-import StarRating from "../stars/StarRating";
-import { Fade } from "react-awesome-reveal";
 import Breadcrumb from "../breadcrumb/Breadcrumb";
 import useSWR from "swr";
 import fetcher from "../fetcher-api/Fetcher";
 import { Col, Form, Row } from "react-bootstrap";
 import Spinner from "../button/Spinner";
 import { useRouter } from "next/navigation";
-import { addOrder, clearCart, setOrders, setSwitchOn } from "@/store/reducers/cartSlice";
+import { clearCart, setOrders, setSwitchOn } from "@/store/reducers/cartSlice";
 import { loginUser, getCurrentUser, getUserAddress, getDefaultAddress, createAddress, Address as BackendAddress } from "@/store/reducers/userSlice";
 import { mergeCart, getCart, CartItem as BackendCartItem, checkout } from "@/store/reducers/orderSlice";
 import { showErrorToast, showSuccessToast } from "../toast-popup/Toastify";
@@ -127,6 +123,7 @@ const CheckOut = ({
     const [selectedAddress, setSelectedAddress] = useState<Address | null>(null);
     const [filteredCountryData, setFilteredCountryData] = useState<Country[]>([]);
     const [isTermsChecked, setIsTermsChecked] = useState(false);
+    const [checkoutLoading, setCheckoutLoading] = useState(false);
     const checkboxRef = useRef<HTMLInputElement>(null);
     const userExplicitlyChoseNew = useRef(false);
 
@@ -526,6 +523,9 @@ const CheckOut = ({
         return;
       }
 
+      // Set loading state to show spinner
+      setCheckoutLoading(true);
+
       // Prepare checkout payload
       const checkoutPayload: {
         address_id?: number;
@@ -554,6 +554,7 @@ const CheckOut = ({
         } else {
           // New address - validate and send full address payload
           if (!formData.name || !formData.phone || !formData.full_address || !formData.country || !formData.district) {
+            setCheckoutLoading(false);
             showErrorToast("Please fill in all required address fields.");
             setValidated(true);
             return;
@@ -573,6 +574,7 @@ const CheckOut = ({
       } else {
         // Guest user - always send full address payload
         if (!formData.name || !formData.phone || !formData.full_address || !formData.country || !formData.district) {
+          setCheckoutLoading(false);
           showErrorToast("Please fill in all required address fields.");
           setValidated(true);
           return;
@@ -705,6 +707,10 @@ const CheckOut = ({
   return (
     <>
       <Breadcrumb title={"Checkout"} />
+      {/* Full-page spinner overlay during checkout */}
+      {checkoutLoading && (
+        <Spinner />
+      )}
       <section className="gi-checkout-section padding-tb-40">
         <h2 className="d-none">Checkout Page</h2>
         <div className="container">
@@ -1441,14 +1447,21 @@ const CheckOut = ({
                       <button
                         onClick={handleCheckout}
                         className="gi-btn-2"
-                        disabled={isCheckoutDisabled()}
+                        disabled={isCheckoutDisabled() || checkoutLoading}
                         style={{
                           width: "100%",
-                          opacity: isCheckoutDisabled() ? 0.6 : 1,
-                          cursor: isCheckoutDisabled() ? "not-allowed" : "pointer",
+                          opacity: isCheckoutDisabled() || checkoutLoading ? 0.6 : 1,
+                          cursor: isCheckoutDisabled() || checkoutLoading ? "not-allowed" : "pointer",
+                          position: "relative",
                         }}
                       >
-                        Place Order
+                        {checkoutLoading ? (
+                          <>
+                            <Spinner /> Processing...
+                          </>
+                        ) : (
+                          "Place Order"
+                        )}
                       </button>
                     </div>
                   )}
@@ -1459,82 +1472,6 @@ const CheckOut = ({
           )}
         </div>
       </section>
-      {cartItems.length !== 0 ? (
-        <section className="gi-new-product padding-tb-40">
-          <div className="container">
-            <Row className="overflow-hidden m-b-minus-24px">
-              <Col lg={12} className="gi-new-prod-section col-lg-12">
-                <div className="gi-products">
-                  <Fade
-                    direction="up"
-                    duration={2000}
-                    triggerOnce
-                    delay={200}
-                    className="section-title-2"
-                    data-aos="fade-up"
-                    data-aos-duration="2000"
-                    data-aos-delay="200"
-                  >
-                    <h2 className="gi-title">
-                      New <span>Arrivals</span>
-                    </h2>
-                    <p>Browse The Collection of Top Products</p>
-                  </Fade>
-                  <Fade
-                    direction="up"
-                    duration={2000}
-                    triggerOnce
-                    delay={200}
-                    className="gi-new-block m-minus-lr-12"
-                    data-aos="fade-up"
-                    data-aos-duration="2000"
-                    data-aos-delay="300"
-                  >
-                    <Swiper
-                      loop={true}
-                      autoplay={{ delay: 1000 }}
-                      slidesPerView={5}
-                      className="deal-slick-carousel gi-product-slider"
-                      breakpoints={{
-                        0: {
-                          slidesPerView: 1,
-                        },
-                        320: {
-                          slidesPerView: 1,
-                          spaceBetween: 25,
-                        },
-                        426: {
-                          slidesPerView: 2,
-                        },
-                        640: {
-                          slidesPerView: 2,
-                        },
-                        768: {
-                          slidesPerView: 3,
-                        },
-                        1024: {
-                          slidesPerView: 3,
-                        },
-                        1025: {
-                          slidesPerView: 5,
-                        },
-                      }}
-                    >
-                      {getData().map((item: any, index: number) => (
-                        <SwiperSlide key={index}>
-                          <ItemCard data={item} />
-                        </SwiperSlide>
-                      ))}
-                    </Swiper>
-                  </Fade>
-                </div>
-              </Col>
-            </Row>
-          </div>
-        </section>
-      ) : (
-        <></>
-      )}
     </>
   );
 };

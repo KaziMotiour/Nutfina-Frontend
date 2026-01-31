@@ -187,7 +187,7 @@ const OrderPage = () => {
                               className="pro-gl-content"
                             >
                               <td scope="row">
-                                <span>#{order.id}</span>
+                                <span>{order.order_number || 'N/A'}</span>
                               </td>
                               <td>
                                 <span>{getPaymentMethod(order)}</span>
@@ -199,7 +199,7 @@ const OrderPage = () => {
                                 <span>{formatDate(order.placed_at || order.created)}</span>
                               </td>
                               <td>
-                                <span>${parseFloat(order.total_amount).toFixed(2)}</span>
+                                <span>${(parseFloat(order.total_amount) || 0)?.toFixed(2)}</span>
                               </td>
                               <td>
                                 <span className={getStatusClass(order.status)}>

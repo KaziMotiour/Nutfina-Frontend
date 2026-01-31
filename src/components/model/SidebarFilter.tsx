@@ -103,11 +103,11 @@ const SidebarFilter = ({
     switch (category) {
       case "roasted-nuts":
         return "fi fi-rs-grape";
-      case "protein-powder":
+      case "nutrition-powder":
         return "fi fi-rs-apple-whole";
       case "Snacks":
         return "fi fi-rs-popcorn";
-      case "Protein Powder":
+      case "nutrition Powder":
         return "fi fi-rs-cookie";
       case "Foods":
         return "fi fi-rs-hamburger";

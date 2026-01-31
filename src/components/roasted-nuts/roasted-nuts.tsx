@@ -9,6 +9,7 @@ import { getCategory, getProducts, clearProducts, Product, ProductVariant } from
 import ItemCard from "../product-item/ItemCard";
 
 const RoastedNuts = () => {
+    const [selectedIndex, setSelectedIndex] = useState(0);
     const dispatch = useDispatch<AppDispatch>();
     
     const { 
@@ -18,9 +19,9 @@ const RoastedNuts = () => {
         currentCategory 
     } = useSelector((state: RootState) => state.shop);
 
-    useEffect(() => {
-        console.log('products', products);
-    }, [products]);
+    // useEffect(() => {
+    //     console.log('products', products);
+    // }, [products]);
 
     // Fetch category by slug "roasted-nuts"
     useEffect(() => {
