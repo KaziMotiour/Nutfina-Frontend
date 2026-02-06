@@ -10,7 +10,6 @@ import { Fade } from "react-awesome-reveal";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "../../store";
 import { getFeaturedProducts, Product, ProductVariant } from "../../store/reducers/shopSlice";
-import DealendTimer from "../dealend-timer/DealendTimer";
 import Spinner from "../button/Spinner";
 import { useEffect } from "react";
 
@@ -29,6 +28,10 @@ const Deal = ({
   useEffect(() => {
     dispatch(getFeaturedProducts());
   }, [dispatch]);
+
+  useEffect(() => {
+    console.log(featuredProducts);
+  }, [featuredProducts]);
 
   // Transform backend product data to ItemCard format
   const transformedProducts = useMemo(() => {
@@ -65,42 +68,44 @@ const Deal = ({
       };
 
       const options = product?.variants?.map((variant: ProductVariant) => {
-        return {
-          id: variant.id,
-          title: variant.name,
-          newPrice: variant.final_price,
-          oldPrice: variant.price,
-          weight: variant.weight_grams ? `${variant.weight_grams}g` : "N/A",
-          sku: variant.sku,
-          image: getImageUrl(variant?.images?.[0] || variant?.product_images?.[0]),
-          imageTwo: getImageUrl(variant?.images?.[1] || variant?.product_images?.[1]),
-        }
-
+          return {
+              id: variant.id,
+              title: variant.name,
+              newPrice: variant.final_price,
+              oldPrice: variant.price,
+              weight: variant.weight_grams ? `${variant.weight_grams}g` : "N/A",
+              sku: variant.sku,
+              image: getImageUrl(variant?.images?.[0] || variant?.product_images?.[0]),
+              imageTwo: getImageUrl(variant?.images?.[1] || variant?.product_images?.[1]),
+          }
       })
-      return {
-        id: product.id,
-        variant_id: firstVariant?.id || null,
-        title: product.name,
-        newPrice: price,
-        oldPrice: oldPrice || price,
-        sale: firstVariant?.on_sale ? "Sale" : "",
-        image: getImageUrl(firstImage),
-        imageTwo: getImageUrl(secondImage),
-        category: categoryName,
-        status: firstVariant?.is_active ? "Available" : "Out of Stock",
-        rating: 5, // Default rating, can be added to backend later
-        weight: firstVariant?.weight_grams 
-          ? (firstVariant.weight_grams < 1000 
-            ? `${firstVariant.weight_grams}g` 
-            : `${(firstVariant.weight_grams / 1000).toFixed(1)}kg`)
-        : "N/A",
-        sku: firstVariant?.sku || product.id,
-        quantity: 1,
-        date: product.created,
-        location: "Bangladesh",
-        brand: categoryName,
-        options: options,
-      };
+      
+        return {
+            id: product.id,
+            slug: product.slug,
+            variant_id: firstVariant?.id || null,
+            title: product.name,
+            newPrice: price,
+            oldPrice: oldPrice || price,
+            sale: firstVariant?.on_sale ? "Sale" : "",
+            image: getImageUrl(firstImage),
+            imageTwo: getImageUrl(secondImage),
+            category: categoryName,
+            categorySlug: product.category_slug,
+            status: firstVariant?.is_active ? "Available" : "Out of Stock",
+            rating: 5, // Default rating, can be added to backend later
+            weight: firstVariant?.weight_grams 
+              ? (firstVariant.weight_grams < 1000 
+                ? `${firstVariant.weight_grams}g` 
+                : `${(firstVariant.weight_grams / 1000).toFixed(1)}kg`)
+            : "N/A",
+            sku: firstVariant?.sku || product.id,
+            quantity: 1,
+            date: product.created,
+            location: "Bangladesh",
+            brand: categoryName,
+            options: options,
+        };
     });
   }, [featuredProducts]);
 

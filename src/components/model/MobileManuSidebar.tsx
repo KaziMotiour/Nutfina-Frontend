@@ -179,7 +179,7 @@ const MobileManuSidebar = ({ isMobileMenuOpen, closeMobileManu, toggleMainMenu, 
                 </li> */}
                 <li className="dropdown">
                   {/* <span onClick={() => toggleMainMenu('blog')} className="menu-toggle"></span> */}
-                  <Link href="/blog-left-sidebar">
+                  <Link href="/blogs">
                     Blog
                   </Link>
                   {/* <Collapse in={activeMainMenu === "blog"} >

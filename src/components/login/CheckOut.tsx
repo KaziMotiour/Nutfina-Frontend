@@ -155,6 +155,7 @@ const CheckOut = ({
             return {
                 id: item.id,
                 variant_id: item.variant,
+                slug: product.slug,
                 title: title,
                 newPrice: parseFloat(item.unit_price),
                 quantity: item.quantity,

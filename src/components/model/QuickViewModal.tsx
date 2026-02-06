@@ -188,7 +188,7 @@ const QuickViewModal = ({ show, handleClose, data }) => {
                     </div>
                     <div style={{ marginTop: "10px", marginBottom: "15px" }}>
                       <Link 
-                        href={data.slug ? `/products/${data.slug}` : `/product-details/${data.id}`}
+                        href={`/product-details/${data.slug}`}
                         onClick={handleClose}
                         style={{
                           color: "#5caf90",

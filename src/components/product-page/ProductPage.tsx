@@ -94,65 +94,6 @@ const ProductPage = ({
       </div>
     );
 
-  const handleCategoryChange = (category) => {
-    const updatedCategory = selectedCategory.includes(category)
-      ? selectedCategory.filter((cat) => cat !== category)
-      : [...selectedCategory, category];
-    dispatch(setSelectedCategory(updatedCategory));
-  };
-
-  const handleWeightChange = (weight) => {
-    const updatedweight = selectedWeight.includes(weight)
-      ? selectedWeight.filter((wet) => wet !== weight)
-      : [...selectedWeight, weight];
-    dispatch(setSelectedWeight(updatedweight));
-  };
-
-  const handleColorChange = (color) => {
-    const updatedcolor = selectedColor.includes(color)
-      ? selectedColor.filter((clr) => clr !== color)
-      : [...selectedColor, color];
-    dispatch(setSelectedColor(updatedcolor));
-  };
-
-  const handleTagsChange = (tag) => {
-    const updatedtag = selectedTags.includes(tag)
-      ? selectedTags.filter((tg) => tg !== tag)
-      : [...selectedTags, tag];
-    dispatch(setSelectedTags(updatedtag));
-  };
-
-  const getData = () => {
-    if (hasPaginate) return data.data;
-    else return data;
-  };
-
-  // let filteredData = [...data];
-
-  // if (selectedCategory.length > 0) {
-  //   filteredData = filteredData.filter((item) =>
-  //     selectedCategory.includes(item.category)
-  //   );
-  // }
-
-  // if (selectedWeight.length > 0) {
-  //   filteredData = filteredData.filter((item) =>
-  //     selectedWeight.includes(item.weight)
-  //   );
-  // }
-
-  // if (selectedColor.length > 0) {
-  //   filteredData = filteredData.filter((item) =>
-  //     selectedColor.includes(item.Color)
-  //   );
-  // }
-
-  // if (selectedTags.length > 0) {
-  //   filteredData = filteredData.filter((item) =>
-  //     selectedTags.includes(item.tags)
-  //   );
-  // }
-
   return (
     <>
       <Col

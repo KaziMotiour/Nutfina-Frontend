@@ -291,7 +291,7 @@ function HeaderManu() {
                           </ul>
                         </li> */}
                         <li className="dropdown drop-list">
-                          <Link href="/blog-left-sidebar" className="dropdown-arrow">
+                          <Link href="/blogs" className="dropdown-arrow">
                             Blog
                             {/* <i className="fi-rr-angle-small-right"></i> */}
                           </Link>

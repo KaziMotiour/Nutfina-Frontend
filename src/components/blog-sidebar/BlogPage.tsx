@@ -4,12 +4,11 @@ import BlogContent from "./blog-content/BlogContent";
 import RecentBlog from "./blog-sidebar-area/RecentBlog";
 import BlogCategories from "./blog-sidebar-area/BlogCategories";
 import { Col } from "react-bootstrap";
-import useSWR from "swr";
-import fetcher from "../fetcher-api/Fetcher";
 import Paginantion from "../paginantion/Paginantion";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "@/store";
 import { setSearchTerm } from "@/store/reducers/filterReducer";
+import { getBlogs } from "@/store/reducers/blogSlice";
 import Spinner from "../button/Spinner";
 
 const BlogPage = ({ order = "", lg = 12, md }: any) => {
@@ -17,19 +16,34 @@ const BlogPage = ({ order = "", lg = 12, md }: any) => {
   const { selectedCategory, searchTerm } = useSelector(
     (state: RootState) => state.filter
   );
+  const { blogs, loading, error, pagination } = useSelector(
+    (state: RootState) => state.blog
+  );
   const [currentPage, setCurrentPage] = useState(1);
   const [searchInput, setSearchInput] = useState(searchTerm || "");
   const itemsPerPage = 6;
 
-  const postData = useMemo(
-    () => ({
-      searchTerm,
+  useEffect(() => {
+    const params: any = {
       page: currentPage,
       limit: itemsPerPage,
-      selectedCategory,
-    }),
-    [searchTerm, currentPage, itemsPerPage, selectedCategory]
-  );
+      ordering: "-published_at",
+    };
+    
+    if (searchTerm) {
+      params.search = searchTerm;
+    }
+    
+    if (selectedCategory && selectedCategory.length > 0) {
+      // selectedCategory contains category IDs
+      // Use the first category ID for filtering (backend supports single category filter)
+      if (selectedCategory[0]) {
+        params.category = selectedCategory[0];
+      }
+    }
+    
+    dispatch(getBlogs(params) as any);
+  }, [dispatch, currentPage, searchTerm, selectedCategory, itemsPerPage]);
 
   const handleSearch = (event: any) => {
     setSearchInput(event.target.value);
@@ -40,26 +54,19 @@ const BlogPage = ({ order = "", lg = 12, md }: any) => {
     setCurrentPage(1);
   };
 
-  const { data, error } = useSWR(
-    ["/api/blogcontent", postData],
-    ([url, postData]) => fetcher(url, postData)
-  );
-
   useEffect(() => {
     setSearchInput(searchTerm || "");
   }, [searchTerm]);
 
-  if (error) return <div>Failed to load products</div>;
-
-  const { data: posts = [], totalPages = 0 } = data || {};
-
   const getPageData = () => {
-    return posts;
+    return blogs || [];
   };
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
   };
+
+  const totalPages = Math.ceil((pagination.count || blogs.length) / itemsPerPage);
 
   const handleKeyPress = (event) => {
     if (event.key === 'Enter') {
@@ -70,10 +77,14 @@ const BlogPage = ({ order = "", lg = 12, md }: any) => {
   return (
     <>
       <Col lg={lg} md={12} className={`gi-blogs-rightside ${order}`}>
-        {!data ? (
+        {loading ? (
           <>
             <Spinner />
           </>
+        ) : error ? (
+          <div className="gi-pro-content cart-pro-title">
+            Failed to load blogs: {error}
+          </div>
         ) : (
           <>
             {/* <!-- Blog content Start --> */}
@@ -81,7 +92,7 @@ const BlogPage = ({ order = "", lg = 12, md }: any) => {
               <div className="gi-blogs-inner">
                 <div className="row">
                   {getPageData().map((item: any, index: number) => (
-                    <BlogContent data={item} key={index} md={md} />
+                    <BlogContent data={item} key={item.id || index} md={md} />
                   ))}
                 </div>
               </div>
@@ -89,7 +100,7 @@ const BlogPage = ({ order = "", lg = 12, md }: any) => {
             {/* <!-- Blog content end --> */}
 
             {/* <!-- Pagination Start --> */}
-            {posts.length === 0 ? (
+            {blogs.length === 0 ? (
               <span className="gi-pro-content cart-pro-title">
                 Blog record is not found.
               </span>
@@ -97,8 +108,8 @@ const BlogPage = ({ order = "", lg = 12, md }: any) => {
               <div className="gi-pro-pagination">
                 <span>
                   Showing {(currentPage - 1) * itemsPerPage + 1}-
-                  {Math.min(currentPage * itemsPerPage, posts.length)} of{" "}
-                  {posts.length} item(s)
+                  {Math.min(currentPage * itemsPerPage, pagination.count || blogs.length)} of{" "}
+                  {pagination.count || blogs.length} item(s)
                 </span>
                 <Paginantion
                   currentPage={currentPage}
@@ -118,7 +129,7 @@ const BlogPage = ({ order = "", lg = 12, md }: any) => {
         md={12}
         className={`gi-blogs-sidebar gi-blogs-leftside m-t-991 ${(order = -1)}`}
       >
-        <div className="gi-blog-search">
+        {/* <div className="gi-blog-search">
           <div className="gi-blog-search-form">
             <input
               style={{ boxShadow: "none" }}
@@ -134,7 +145,7 @@ const BlogPage = ({ order = "", lg = 12, md }: any) => {
               <i className="gicon gi-search"></i>
             </button>
           </div>
-        </div>
+        </div> */}
         <div className="gi-blog-sidebar-wrap">
           {/* <!-- Sidebar Recent Blog Block --> */}
           <div className="gi-sidebar-block gi-sidebar-recent-blog">

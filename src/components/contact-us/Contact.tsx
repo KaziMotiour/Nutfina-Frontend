@@ -34,7 +34,7 @@ const Contact = () => {
             </p>
           </div>
           <Row className="gi-contact-detail m-tb-minus-12">
-            <Col sm={6} lg={6} className="p-tp-12">
+            <Col sm={6} lg={4} className="p-tp-12">
               <div className="gi-box">
                 <div className="detail">
                   <div className="icon">
@@ -62,7 +62,7 @@ const Contact = () => {
               </div>
             </Col>
 
-            <Col sm={6} lg={6} className="p-tp-12">
+            <Col sm={6} lg={4} className="p-tp-12">
               <div className="gi-box">
                 <div className="detail">
                   <div className="icon">
@@ -108,8 +108,7 @@ const Contact = () => {
             </Col> */}
           </Row>
           <Row className="p-t-80">
-            <Col md={{ span: 6, offset: 3 }}>
-              <h2 className="gi-title">Contact Us</h2>
+            <Col md={6}>
               <Form noValidate validated={validated} onSubmit={handleSubmit}>
                 <Form.Group className="form-group">
                   <Form.Control

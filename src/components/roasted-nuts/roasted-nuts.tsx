@@ -103,6 +103,7 @@ const RoastedNuts = () => {
 
             return {
                 id: product.id, // Use variant ID (guaranteed to exist since we filtered)
+                slug: product.slug,
                 variant_id: firstVariant.id, // Explicitly set variant_id for cart
                 product_id: product.id, // Keep product ID for reference
                 title: product.name,
@@ -112,6 +113,7 @@ const RoastedNuts = () => {
                 image: getImageUrl(firstImage),
                 imageTwo: getImageUrl(secondImage),
                 category: categoryName,
+                categorySlug: currentCategory?.slug,
                 status: firstVariant.is_active ? "Available" : "Out of Stock",
                 rating: 5, // Default rating, can be added to backend later
                 weight: firstVariant.weight_grams 

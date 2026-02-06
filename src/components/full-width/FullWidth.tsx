@@ -159,6 +159,7 @@ const FullWidth = ({
         id: product.id,
         variant_id: firstVariant?.id || null, // Include variant_id for cart operations
         variant_detail: firstVariant || null, // Include full variant details
+        slug: product.slug,
         title: product.name,
         newPrice: price,
         oldPrice: oldPrice || price,
@@ -172,6 +173,7 @@ const FullWidth = ({
         brand: categoryName,
         sku: firstVariant?.sku ? parseInt(firstVariant.sku) || product.id : product.id,
         category: categoryName,
+        categorySlug: product.category_slug,
         quantity: 1,
         sale: firstVariant?.on_sale ? "Sale" : "",
       };

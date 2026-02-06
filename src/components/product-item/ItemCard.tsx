@@ -13,6 +13,7 @@
   interface Item {
     id: number;
     variant_id: number;
+    slug: string;
     product_id: number;
     title: string;
     newPrice: number;
@@ -42,6 +43,9 @@
     const cart = useSelector((state: RootState) => state.order.cart);
     const cartItems = cart?.items || [];
 
+    // useEffect(() => {
+    //   console.log('data', data);
+    // }, [data]);
     // Check if item is in cart (by variant_id)
     const isItemInCart = (variantId: number) => {
       return cartItems.some((item: any) => item.variant === variantId || item.variant_detail?.id === variantId);
@@ -51,7 +55,7 @@
       // Get variant_id from data
       // data.id might be variant_id, or we need to get it from variant_detail
       const variantId = data.variant_id || data.variant_detail?.id || data.id;
-      
+      ItemCard
       if (!variantId) {
         showErrorToast("Product variant not found");
         return;
@@ -106,7 +110,7 @@
           <div className={` gi-product-inner`}>
             <div className="gi-pro-image-outer">
               <div className="gi-pro-image">
-                <Link href={`/product-details/${data.id}`} className="image">
+                <Link href={`/product-details/${data.slug}`} className="image">
                   <span className="label veg">
                     <span className="dot"></span>
                   </span>
@@ -201,13 +205,13 @@
               </div>
             </div>
             <div className="gi-pro-content">
-              <Link href={`/product-details/${data.id}`}>
+              <Link href={`/product-details/${data.slug}`}>
                 <h6 className="gi-pro-stitle">
                     {data.category}
                 </h6>
                 </Link>
                 <h5 className="gi-pro-title">
-                    <Link href={`/product-details/${data.id}`}>{data.title}</Link>
+                    <Link href={`/product-details/${data.slug}`}>{data.title}</Link>
                 </h5>
                 <div className="gi-pro-rat-price">
                   <span className="qty" style={{ fontSize: '14px' }}>

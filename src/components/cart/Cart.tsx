@@ -11,6 +11,7 @@ import Spinner from "../button/Spinner";
 import QuantitySelector from "../quantity-selector/QuantitySelector";
 import Link from "next/link";
 import { API_BASE_URL } from "../../utils/api";
+import category from "@/utility/data/category";
 
 const Cart = ({
   onSuccess = () => {},
@@ -52,6 +53,7 @@ const Cart = ({
     dispatch(getCart());
   }, [dispatch]);
 
+
   // Fetch related products based on cart items' categories
   useEffect(() => {
     if (cart && cart.items && cart.items.length > 0) {
@@ -59,10 +61,12 @@ const Cart = ({
       const categories = new Set<number>();
       cart.items.forEach((item: BackendCartItem) => {
         const product = (item as any).product_detail;
+
         if (product && product.category) {
-          const categoryId = typeof product.category === 'object' ? product.category.id : product.category;
-          if (categoryId) {
-            categories.add(categoryId);
+          const categorySlug = typeof product.category_slug === 'string' ? product.category_slug : product.category.slug;
+          console.log(categorySlug);
+          if (categorySlug) {
+            categories.add(categorySlug);
           }
         }
       });
@@ -74,11 +78,13 @@ const Cart = ({
           return product?.id;
         }).filter(Boolean)
       );
-
+      console.log(categories);
+      
       // Fetch products from the same categories, excluding cart items
       if (categories.size > 0) {
         const categoryArray = Array.from(categories);
         // Fetch products from the first category (or you could fetch from all)
+
         dispatch(getProducts({ 
           category: categoryArray[0]?.toString(), 
           is_active: true,
@@ -167,6 +173,9 @@ const Cart = ({
         if (product?.id) {
           cartProductIds.add(product.id);
         }
+
+        console.log(variant);
+        
         
         // Add variant ID if available
         if (variant?.id) {

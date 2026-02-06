@@ -8,10 +8,11 @@ import BlogCategories from "../blog-sidebar/blog-sidebar-area/BlogCategories";
 import RecentBlog from "../blog-sidebar/blog-sidebar-area/RecentBlog";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "@/store";
-import useSWR from "swr";
-import fetcher from "../fetcher-api/Fetcher";
 import { useRouter } from "next/navigation";
 import { setSearchTerm } from "@/store/reducers/filterReducer";
+import { getBlogBySlug, clearCurrentBlog } from "@/store/reducers/blogSlice";
+import Spinner from "../button/Spinner";
+import Link from "next/link";
 
 const getRegistrationData = () => {
   if (typeof window !== "undefined") {
@@ -21,12 +22,16 @@ const getRegistrationData = () => {
   return null;
 };
 
-const BlogDetail = ({ order = "" }: any) => {
+const BlogDetail = ({ slug, order = "" }: any) => {
   const { Formik } = formik;
   const formikRef = useRef<any>(null);
   const schema = yup.object().shape({
     comment: yup.string().required(),
   });
+
+  useEffect(() => {
+    console.log('slug', slug);
+  }, [slug]);
 
   const login = useSelector(
     (state: RootState) => state.registration.isAuthenticated
@@ -35,43 +40,21 @@ const BlogDetail = ({ order = "" }: any) => {
   const { selectedCategory, searchTerm } = useSelector(
     (state: RootState) => state.filter
   );
+  
+  const { currentBlog, loading, error } = useSelector(
+    (state: RootState) => state.blog
+  );
+
   const [userData, setUserData] = useState<any | null>(null);
   const router = useRouter();
   const dispatch = useDispatch();
   const [searchInput, setSearchInput] = useState<any>(searchTerm || "");
-  const [comments, setComments] = useState<any>([
-    {
-      name: "John Deo",
-      lname: "",
-      email: "john@example.com",
-      comment: "Lorem ipsum dolor sit amet, consectetur adipisicing elit.",
-      date: "October 14, 2018",
-      profilePhoto: "/assets/img/user/2.jpg",
-      replies: [],
-    },
-    {
-      name: "Jenifer Lowes",
-      lname: "",
-      email: "jenifer@example.com",
-      comment: "Lorem ipsum dolor sit amet, consectetur adipisicing elit.",
-      date: "October 14, 2018",
-      profilePhoto: "/assets/img/user/1.jpg",
-      replies: [],
-    },
-  ]);
+  const [comments, setComments] = useState<any>([]);
 
   const [replyingTo, setReplyingTo] = useState<number | null>(null);
   const [newReply, setNewReply] = useState({
     reply: "",
   });
-
-  const postData = useMemo(
-    () => ({
-      searchTerm,
-      selectedCategory,
-    }),
-    [searchTerm, selectedCategory]
-  );
 
   useEffect(() => {
     const data = getRegistrationData();
@@ -80,21 +63,97 @@ const BlogDetail = ({ order = "" }: any) => {
     }
   }, []);
 
+  useEffect(() => {
+    console.log('slug', slug);
+    if (slug) {
+      console.log('Fetching blog with slug:', slug);
+      dispatch(getBlogBySlug(slug) as any);
+    }
+    // return () => {
+    //   dispatch(clearCurrentBlog());
+    // };
+  }, [dispatch, slug]);
+
+  useEffect(() => {
+    if (error) {
+      console.error('Blog fetch error:', error);
+    }
+  }, [error]);
+
   const handleSearch = (event: any) => {
     setSearchInput(event.target.value);
   };
 
   const handleSearchSubmit = () => {
     dispatch(setSearchTerm(searchInput));
-    router.push("/blog-left-sidebar");
+    router.push("/blogs");
   };
 
-  const { data, error } = useSWR(
-    ["/api/blogcontent", postData],
-    ([url, postData]) => fetcher(url, postData)
-  );
+  // Format date
+  const formatDate = (dateString: string) => {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  };
 
-  if (error) return <div>Failed to load products</div>;
+  // Get category name
+  const getCategory = () => {
+    if (currentBlog?.category && currentBlog.category.name) {
+      return currentBlog.category.name;
+    }
+    return "Uncategorized";
+  };
+
+  // Get category slug for filtering
+  const getCategorySlug = () => {
+    if (currentBlog?.category && currentBlog.category.slug) {
+      return currentBlog.category.slug;
+    }
+    return "";
+  };
+
+  if (loading) {
+    return (
+      <Col lg={8} md={12} className={`gi-blogs-rightside ${order}`}>
+        <Spinner />
+      </Col>
+    );
+  }
+
+  if (error) {
+    return (
+      <Col lg={8} md={12} className={`gi-blogs-rightside ${order}`}>
+        <div className="gi-pro-content cart-pro-title">
+          <p>Error loading blog: {error}</p>
+          <p>Slug used: {slug}</p>
+          <p>Please check the console for more details.</p>
+        </div>
+      </Col>
+    );
+  }
+
+  if (!loading && !currentBlog) {
+    return (
+      <Col lg={8} md={12} className={`gi-blogs-rightside ${order}`}>
+        <div className="gi-pro-content cart-pro-title">
+          <p>Blog not found</p>
+          <p>Slug used: {slug}</p>
+        </div>
+      </Col>
+    );
+  }
+
+  if (!currentBlog) {
+    return (
+      <Col lg={8} md={12} className={`gi-blogs-rightside ${order}`}>
+        <Spinner />
+      </Col>
+    );
+  }
 
   const onSubmit = (data: any) => {
     const date = new Date().toLocaleDateString();
@@ -153,86 +212,108 @@ const BlogDetail = ({ order = "" }: any) => {
           <div className="gi-blogs-inner">
             <div className="gi-single-blog-item">
               <div className="single-blog-info">
-                <figure className="blog-img">
-                  <a href="#">
+                {currentBlog.images && currentBlog.images.length > 0 && currentBlog.images[0].image_url && (
+                  <figure className="blog-img">
                     <img
-                      src={
-                        process.env.NEXT_PUBLIC_URL + "/assets/img/blog/8.jpg"
-                      }
-                      alt="news imag"
+                      src={currentBlog.images[0].image_url}
+                      alt={currentBlog.images[0].alt_text || currentBlog.title}
+                      style={{ 
+                        width: '100%', 
+                        height: 'auto', 
+                        maxHeight: '500px',
+                        objectFit: 'contain',
+                        borderRadius: '16px',
+                        display: 'block'
+                      }}
                     />
-                  </a>
-                </figure>
+                  </figure>
+                )}
                 <div className="single-blog-detail">
                   <label>
-                    June 30,2022 - <a href="#">Organic</a>
+                    {formatDate(currentBlog.published_at || currentBlog.created)} -{" "}
+                    {currentBlog.category ? (
+                      <Link href={`/blogs?category=${getCategorySlug()}`}>
+                        {getCategory()}
+                      </Link>
+                    ) : (
+                      "Uncategorized"
+                    )}
                   </label>
-                  <h3>Marketing Guide: 5 Steps to Success.</h3>
-                  <p className="gi-text">
-                    Lorem Ipsum is simply dummy text of the printing and
-                    typesetting industry. Lorem Ipsum has been the industry`s
-                    standard dummy text ever since the 1500s, when an unknown
-                    printer took a galley of type and scrambled it to make a
-                    type specimen book. It has survived not only five centuries,
-                    but also the leap into electronic typesetting, remaining
-                    essentially unchanged. It was popularised in the 1960s with
-                    the release of Letraset sheets containing Lorem Ipsum
-                    passages, and more recently with desktop publishing software
-                    like Aldus PageMaker including versions of Lorem Ipsum.
-                  </p>
-                  <p className="gi-text-highlight">
-                    The standard chunk of Lorem Ipsum used since the 1500s is
-                    reproduced below for those interested. Sections 1.10.32 and
-                    1.10.33 from `de Finibus Bonorum et Malorum` by Cicero.
-                  </p>
-                  <p>
-                    Contrary to popular belief, Lorem Ipsum is not simply random
-                    text. It has roots in a piece of passages of Lorem Ipsum
-                    classical Latin literature from 45 BC, making it over 2000
-                    years old. Richard McClintock, a Latin professor at
-                    Hampden-Sydney College in Virginia
-                  </p>
-                  <div className="sub-img">
-                    <div className="row">
-                      <div className="col-md-6">
-                        <img
-                          src={
-                            process.env.NEXT_PUBLIC_URL +
-                            "/assets/img/blog/3.jpg"
-                          }
-                          alt="blog"
-                        />
-                      </div>
-                      <div className="col-md-6">
-                        <img
-                          src={
-                            process.env.NEXT_PUBLIC_URL +
-                            "/assets/img/blog/4.jpg"
-                          }
-                          alt="blog"
-                        />
+                  <h3>{currentBlog.title || "Untitled Blog Post"}</h3>
+                  {currentBlog.excerpt && (
+                    <p className="gi-text-highlight">{currentBlog.excerpt}</p>
+                  )}
+                  {currentBlog.content ? (
+                    <div 
+                      className="gi-text"
+                      dangerouslySetInnerHTML={{ 
+                        __html: currentBlog.content.replace(/\n/g, '<br />') 
+                      }}
+                    />
+                  ) : (
+                    <p className="gi-text">No content available for this blog post.</p>
+                  )}
+                  {/* Extra images at the end of content */}
+                  {currentBlog.images && currentBlog.images.length > 1 && (
+                    <div className="sub-img mt-4 mb-4">
+                      <div className="row">
+                        {currentBlog.images.slice(1, 3).map((img: any, index: number) => (
+                          <div
+                            key={img.id || index} 
+                            className="col-md-6 mb-3"
+                            style={{
+                              borderRadius: '16px',
+                              overflow: 'hidden'
+                            }}
+                          >
+                            <img
+                              src={img.image_url || img.image}
+                              alt={img.alt_text || `Blog image ${index + 2}`}
+                              style={{ 
+                                width: '100%', 
+                                height: 'auto', 
+                                maxHeight: '400px',
+                                objectFit: 'cover',
+                                display: 'block'
+                              }}
+                            />
+                          </div>
+                        ))}
                       </div>
                     </div>
+                  )}
+                  {currentBlog.category && (
+                    <div className="blog-category mt-4">
+                      <strong>Category: </strong>
+                      <Link href={`/blogs?category=${getCategorySlug()}`}>
+                        <span className="badge bg-primary">{getCategory()}</span>
+                      </Link>
+                    </div>
+                  )}
+                  {currentBlog.tags && currentBlog.tags.length > 0 && (
+                    <div className="blog-tags mt-3">
+                      <strong>Tags: </strong>
+                      {currentBlog.tags.map((tag: any, index: number) => (
+                        <span key={tag.id || index} className="badge bg-secondary me-2 mb-2">
+                          {tag.name}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <div className="blog-meta mt-4 pt-3 border-top">
+                    <small className="text-muted">
+                      <strong>Author:</strong> {currentBlog.author_name || "Admin"} | 
+                      <strong> Reading time:</strong> {currentBlog.reading_time || 1} min | 
+                      <strong> Views:</strong> {currentBlog.view_count || 0}
+                    </small>
                   </div>
-                  <p>
-                    It is a long established fact that a reader will be
-                    distracted by the readable content of a page distracted by
-                    the readable when looking at its layout. The point of using
-                    Lorem Ipsum is that it has a more-or-less normal
-                    distribution of letters, as opposed to using.
-                  </p>
-                  <p>
-                    There are many variations of passages of Lorem Ipsum
-                    available, but the majority have suffered distracted by the
-                    readable alteration in some form, by injected humour.
-                  </p>
                 </div>
               </div>
             </div>
           </div>
           {/* <!-- Comments Start -->  */}
 
-          <div className="gi-blog-comments m-t-80">
+          {/* <div className="gi-blog-comments m-t-80">
             {!login ? (
               <div className="container">
                 <p>
@@ -376,7 +457,7 @@ const BlogDetail = ({ order = "" }: any) => {
                 </div>
               </>
             )}
-          </div>
+          </div> */}
 
           {/* <!-- Comments End --> */}
         </div>
@@ -387,7 +468,7 @@ const BlogDetail = ({ order = "" }: any) => {
         md={12}
         className={`gi-blogs-sidebar gi-blogs-leftside m-t-991 ${(order = -1)}`}
       >
-        <div className="gi-blog-search">
+        {/* <div className="gi-blog-search">
           <div className="gi-blog-search-form">
             <input
               style={{ boxShadow: "none" }}
@@ -405,7 +486,7 @@ const BlogDetail = ({ order = "" }: any) => {
               <i className="gicon gi-search"></i>
             </button>
           </div>
-        </div>
+        </div> */}
         <div className="gi-blog-sidebar-wrap">
           {/* <!-- Sidebar Recent Blog Block --> */}
           <div className="gi-sidebar-block gi-sidebar-recent-blog">

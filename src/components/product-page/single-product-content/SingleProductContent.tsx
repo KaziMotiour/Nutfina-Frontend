@@ -120,7 +120,7 @@ const SingleProductContent = ({
         id: firstVariant?.id || product.id,
         productId: product.id,
         title: product.name,
-        description: product.description || '',
+        excerpt: product.excerpt || '',
         price,
         oldPrice,
         images: imageArray,
@@ -303,18 +303,18 @@ const SingleProductContent = ({
                     )}
                     </div>
                     <div className="gi-single-stoke">
-                    <span className="gi-single-sku">SKU#: {currentSku}</span>
-                    <span className="gi-single-ps-title">{productData?.status || 'OUT OF STOCK'}</span>
+                        <span className="gi-single-sku">SKU#: {currentSku}</span>
+                        <span className="gi-single-ps-title">{productData?.status || 'OUT OF STOCK'}</span>
                     </div>
                 </div>
                 <div className="gi-single-desc">
-                    <div dangerouslySetInnerHTML={{ __html: productData?.description || "No description available." }}></div>
+                    <div dangerouslySetInnerHTML={{ __html: productData?.excerpt || "No description available." }}></div>
                 </div>
 
                 {productData?.variants && Array.isArray(productData.variants) && productData.variants.length > 0 && (
                     <div className="gi-pro-variation">
                     <div className="gi-pro-variation-inner gi-pro-variation-size">
-                        <span>Weight / Variant</span>
+                        <span>Weight</span>
                         <div className="gi-pro-variation-content">
                         <ul>
                             {productData.variants.map((variant: any, index: number) => (

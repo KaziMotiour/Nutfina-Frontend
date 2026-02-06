@@ -28,6 +28,7 @@ export interface Product {
   slug: string;
   category: number | Category;
   category_name: string;
+  category_slug: string;
   description: string;
   base_price: string;
   is_active: boolean;
@@ -231,6 +232,7 @@ export const getFeaturedProducts = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await apiCall("/shop/products/featured/");
+      console.log(response);
       return Array.isArray(response) ? response : response.results || [];
     } catch (error: any) {
       return rejectWithValue(error.message || "Failed to get featured products");

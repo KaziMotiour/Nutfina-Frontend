@@ -1,43 +1,90 @@
-import React from "react";
-import useSWR from "swr";
-import fetcher from "@/components/fetcher-api/Fetcher";
+"use client";
+import React, { useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { RootState } from "@/store";
+import { getBlogs } from "@/store/reducers/blogSlice";
 import Spinner from "@/components/button/Spinner";
+import Link from "next/link";
 
-const RecentBlog = ({
-  onSuccess = () => {},
-  onError = () => {},
-  hasPaginate = false,
-}) => {
+const RecentBlog = () => {
+  const dispatch = useDispatch();
+  const { blogs, loading } = useSelector((state: RootState) => state.blog);
 
-  const { data, error } = useSWR(`/api/recentblog`, fetcher, {
-    onSuccess,
-    onError,
-  });
+  useEffect(() => {
+    // Fetch recent blogs (limit to 5, ordered by published_at)
+    if(blogs.length === 0) {
+      dispatch(getBlogs({ limit: 5, ordering: "-published_at" }) as any);
+    }
+  }, [dispatch, blogs]);
 
-  if (error) return <div>Failed to load products</div>;
-  if (!data) return <div>
-    <Spinner />
-  </div>;
-
-  const getData = () => {
-    if (hasPaginate) return data.data;
-    else return data;
+  // Format date
+  const formatDate = (dateString: string) => {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
   };
 
-  const categoryData = getData();
+  // Get first image or placeholder
+  const getImageUrl = (blog: any) => {
+    if (blog.images && blog.images.length > 0 && blog.images[0].image_url) {
+      return blog.images[0].image_url;
+    }
+    return process.env.NEXT_PUBLIC_URL + "/assets/img/blog/placeholder.jpg";
+  };
+
+  // Get category name
+  const getCategory = (blog: any) => {
+    if (blog.category && blog.category.name) {
+      return blog.category.name;
+    }
+    return "Uncategorized";
+  };
+
+  if (loading) {
+    return (
+      <div>
+        <Spinner />
+      </div>
+    );
+  }
+
+  if (!blogs || blogs.length === 0) {
+    return <div className="text-muted">No recent articles found.</div>;
+  }
+
   return (
     <>
-      {categoryData.map((data: any, index: number) => (
-        <div key={index} className="gi-sidebar-block-item">
+      {blogs.slice(0, 5).map((blog: any) => (
+        <div key={blog.id} className="gi-sidebar-block-item">
           <div className="gi-sidebar-block-img">
-            <img src={data.image} alt="blog imag" />
+            <Link href={`/blog-details/${blog.slug}`}>
+              <img 
+                src={getImageUrl(blog)} 
+                alt={blog.title || "blog image"}
+                style={{ borderRadius: '8px', width: '100%', height: 'auto', objectFit: 'cover' }}
+              />
+            </Link>
           </div>
           <div className="gi-sidebar-block-detial">
             <h5 className="gi-blog-title">
-              <a href="/blog-detail-left-sidebar">{data.title}</a>
+              <Link href={`/blog-details/${blog.slug}`}>
+                {blog.title}
+              </Link>
             </h5>
-            <div className="gi-blog-date">{data.date}</div>
-            <a href="/blog-left-sidebar">{data.category}</a>
+            <div className="gi-blog-date">
+              {formatDate(blog.published_at || blog.created)}
+            </div>
+            {blog.category ? (
+              <Link href={`/blogs?category=${blog.category.slug}`}>
+                {getCategory(blog)}
+              </Link>
+            ) : (
+              <span>Uncategorized</span>
+            )}
           </div>
         </div>
       ))}

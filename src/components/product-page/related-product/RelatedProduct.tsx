@@ -44,7 +44,7 @@ const RelatedProduct = ({
       
       if (categoryId) {
         dispatch(getProducts({ 
-          category: categoryId, 
+          category: categoryId.toString(), 
           is_active: true 
         }));
       } else {
@@ -118,6 +118,7 @@ const RelatedProduct = ({
       return {
         id: firstVariant?.id || product.id,
         variant_id: firstVariant?.id || product.id,
+        slug: product.slug,
         product_id: product.slug || product.id, // Use slug for product details link
         title: product.name,
         newPrice: price,

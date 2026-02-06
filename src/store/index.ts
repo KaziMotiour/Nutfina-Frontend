@@ -14,6 +14,7 @@ import themeSlice from "./reducers/themeSlice";
 import userSlice from "./reducers/userSlice";
 import shopSlice from "./reducers/shopSlice";
 import orderSlice from "./reducers/orderSlice";
+import blogSlice from "./reducers/blogSlice";
 
 // Configure persist for each slice separately
 const persistConfigCart = { key: "cart", storage };
@@ -30,6 +31,7 @@ const persistConfigUser = {
 };
 const persistConfigShop = { key: "shop", storage };
 const persistConfigOrder = { key: "order", storage };
+const persistConfigBlog = { key: "blog", storage };
 
 // Wrap each reducer with persistReducer
 const persistedCartReducer = persistReducer(persistConfigCart, cartSlice);
@@ -54,6 +56,7 @@ const persistedThemeReducer = persistReducer(persistConfigTheme, themeSlice);
 const persistedUserReducer = persistReducer(persistConfigUser, userSlice);
 const persistedShopReducer = persistReducer(persistConfigShop, shopSlice);
 const persistedOrderReducer = persistReducer(persistConfigOrder, orderSlice);
+const persistedBlogReducer = persistReducer(persistConfigBlog, blogSlice);
 
 // Combine reducers
 const rootReducer = combineReducers({
@@ -67,6 +70,7 @@ const rootReducer = combineReducers({
   user: persistedUserReducer,
   shop: persistedShopReducer,
   order: persistedOrderReducer,
+  blog: persistedBlogReducer,
 });
 
 // Configure store
