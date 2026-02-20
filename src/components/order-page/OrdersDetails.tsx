@@ -24,16 +24,6 @@ const ProductOrderDetails = ({ id }: { id: string | number }) => {
     }
   }, [dispatch, orderId, isAuthenticated]);
 
-  // useEffect(() => {
-  //   console.log('order');
-    
-  //   if (order) {
-  //     if (order.items && order.items.length > 0) {
-  //         console.log("Order items:", order.items);
-  //     }
-  //   }
-  // }, [order]);
-
   const formatDate = (dateString: string | null) => {
     if (!dateString) return "N/A";
     try {
@@ -51,17 +41,6 @@ const ProductOrderDetails = ({ id }: { id: string | number }) => {
   };
 
   const getItemImage = (item: OrderItem) => {
-    // Debug logging
-    if (item.variant_detail) {
-      console.log("Item variant_detail:", item.variant_detail);
-      console.log("Variant images:", item.variant_detail.images);
-      console.log("Variant product_images:", item.variant_detail.product_images);
-    }
-    if (item.product_detail) {
-      console.log("Item product_detail:", item.product_detail);
-      console.log("Product images:", item.product_detail.images);
-    }
-    
     // Try variant images first
     if (item.variant_detail?.images && Array.isArray(item.variant_detail.images) && item.variant_detail.images.length > 0) {
       const activeImage = item.variant_detail.images.find((img: any) => img?.is_active !== false);
@@ -71,7 +50,6 @@ const ProductOrderDetails = ({ id }: { id: string | number }) => {
         // Check multiple possible image URL fields
         const imageUrl = firstImage.image || firstImage.image_url || firstImage.url;
         if (imageUrl && typeof imageUrl === 'string' && imageUrl.trim() !== '') {
-          console.log("Using variant image:", imageUrl);
           return imageUrl;
         }
       }
@@ -85,7 +63,6 @@ const ProductOrderDetails = ({ id }: { id: string | number }) => {
       if (firstImage) {
         const imageUrl = firstImage.image || firstImage.image_url || firstImage.url;
         if (imageUrl && typeof imageUrl === 'string' && imageUrl.trim() !== '') {
-          console.log("Using variant product image:", imageUrl);
           return imageUrl;
         }
       }
@@ -99,13 +76,11 @@ const ProductOrderDetails = ({ id }: { id: string | number }) => {
       if (firstImage) {
         const imageUrl = firstImage.image || firstImage.image_url || firstImage.url;
         if (imageUrl && typeof imageUrl === 'string' && imageUrl.trim() !== '') {
-          console.log("Using product_detail image:", imageUrl);
           return imageUrl;
         }
       }
     }
     
-    console.log("No image found, using placeholder");
     return "/assets/img/common/placeholder.png";
   };
 

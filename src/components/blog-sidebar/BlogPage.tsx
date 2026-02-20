@@ -24,6 +24,7 @@ const BlogPage = ({ order = "", lg = 12, md }: any) => {
   const itemsPerPage = 6;
 
   useEffect(() => {
+    console.log("currentPage", currentPage);
     const params: any = {
       page: currentPage,
       limit: itemsPerPage,
@@ -43,7 +44,7 @@ const BlogPage = ({ order = "", lg = 12, md }: any) => {
     }
     
     dispatch(getBlogs(params) as any);
-  }, [dispatch, currentPage, searchTerm, selectedCategory, itemsPerPage]);
+  }, [dispatch]);
 
   const handleSearch = (event: any) => {
     setSearchInput(event.target.value);

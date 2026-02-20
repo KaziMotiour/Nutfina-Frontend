@@ -3,9 +3,10 @@ import Breadcrumb from '@/components/breadcrumb/Breadcrumb'
 import ProductPage from '@/components/product-page/ProductPage'
 import RelatedProduct from '@/components/product-page/related-product/RelatedProduct'
 
-const page = ({ params }) => {
-    // Extract product ID from URL params
-    const productId = params?.id;
+const page = async ({ params }) => {
+    // Extract product ID from URL params - await params in Next.js 15+
+    const { id } = await params;
+    const productId = id;
 
     return (
         <>

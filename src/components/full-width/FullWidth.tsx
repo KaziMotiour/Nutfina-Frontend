@@ -1,8 +1,7 @@
 "use client";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import ShopProductItem from "../product-item/ShopProductItem";
 import { Col, Row } from "react-bootstrap";
-import SidebarFilter from "../model/SidebarFilter";
 import Spinner from "../button/Spinner";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState, AppDispatch } from "@/store";
@@ -29,49 +28,57 @@ const FullWidth = ({
   const dispatch = useDispatch<AppDispatch>();
   const searchParams = useSearchParams();
   
-  const {
-    selectedCategory,
-    selectedWeight,
-    sortOption,
-    minPrice,
-    maxPrice,
-    range,
-    searchTerm,
-    selectedColor,
-    selectedTags,
-  } = useSelector((state: RootState) => state.filter);
+  // Refs to track previous params to prevent duplicate dispatches
+  const previousParamsRef = useRef<string>("");
+  const isInitialMountRef = useRef(true);
+  const previousUrlCategoryRef = useRef<string | null>(null);
+  const previousUrlSearchRef = useRef<string | null>(null);
+  
+  // const {
+  //   selectedCategory,
+  //   selectedWeight,
+  //   sortOption,
+  //   minPrice,
+  //   maxPrice,
+  //   range,
+  //   searchTerm,
+  //   selectedColor,
+  //   selectedTags,
+  // } = useSelector((state: RootState) => state.filter);
   
   // Get products from Redux store
   const { products, loading, error, pagination } = useSelector(
     (state: RootState) => state.shop
   );
 
-  // Read category from URL params
+  // Read category from URL params - use stable values
   const urlCategory = searchParams.get("category");
   const urlSearch = searchParams.get("search");
 
-  // Prepare API params for fetching products
+  // Prepare API params for fetching products - create stable string key for comparison
+  const productParamsKey = useMemo(
+    () => {
+      return JSON.stringify({
+        is_active: true,
+        page: currentPage,
+        search: urlSearch || undefined,
+        category: urlCategory || undefined,
+      });
+    },
+    [currentPage, urlCategory, urlSearch]
+  );
+
+  // Create params object only when needed
   const productParams = useMemo(
     () => {
-      // Prioritize URL category over Redux state
-      console.log("urlCategory", urlCategory);
-      const categoryId = urlCategory 
-        
-      
       return {
         is_active: true,
         page: currentPage,
         search: urlSearch || undefined,
-        // Add category filter if available from URL or Redux state
         ...(urlCategory && { category: urlCategory }),
       };
     },
-    [
-      currentPage,
-      searchTerm,
-      selectedCategory,
-      urlCategory,
-    ]
+    [currentPage, urlCategory, urlSearch]
   );
 
   const handlePriceChange = useCallback(
@@ -90,16 +97,48 @@ const FullWidth = ({
     [dispatch]
   );
 
-  // Fetch products when params change
+  // Initialize search term only once on mount
   useEffect(() => {
-    console.log(productParams);
-    dispatch(getProducts(productParams));
-  }, [dispatch, productParams]);
-
-  useEffect(() => {
-    dispatch(setSearchTerm(""));
-    setCurrentPage(1);
+    if (isInitialMountRef.current) {
+      dispatch(setSearchTerm(""));
+      isInitialMountRef.current = false;
+    }
   }, [dispatch]);
+
+  // Reset page when URL params change (but not on initial mount)
+  useEffect(() => {
+    if (!isInitialMountRef.current) {
+      const urlParamsChanged = 
+        previousUrlCategoryRef.current !== urlCategory ||
+        previousUrlSearchRef.current !== urlSearch;
+      
+      if (urlParamsChanged) {
+        previousUrlCategoryRef.current = urlCategory;
+        previousUrlSearchRef.current = urlSearch;
+        if (currentPage !== 1) {
+          setCurrentPage(1);
+          // Reset the params ref so the fetch effect will run with page 1
+          previousParamsRef.current = "";
+        } else {
+          // Even if page is already 1, reset params ref to trigger fetch with new URL params
+          previousParamsRef.current = "";
+        }
+      }
+    } else {
+      // Update refs on initial mount
+      previousUrlCategoryRef.current = urlCategory;
+      previousUrlSearchRef.current = urlSearch;
+    }
+  }, [urlCategory, urlSearch, currentPage]);
+
+  // Fetch products when params change - only if params actually changed
+  useEffect(() => {
+    // Only dispatch if params actually changed
+    if (previousParamsRef.current !== productParamsKey) {
+      previousParamsRef.current = productParamsKey;
+      dispatch(getProducts(productParams));
+    }
+  }, [productParamsKey, productParams, dispatch]);
 
   const openFilter = () => {
     setIsFilterOpen(true);
@@ -161,6 +200,7 @@ const FullWidth = ({
         variant_detail: firstVariant || null, // Include full variant details
         slug: product.slug,
         title: product.name,
+        excerpt: product.excerpt,
         newPrice: price,
         oldPrice: oldPrice || price,
         image: getImageUrl(firstImage),
@@ -207,6 +247,12 @@ const FullWidth = ({
       <style jsx>{`
         @media (max-width: 575.98px) {
           .filter-btn-responsive { width: auto !important; }
+        }
+        @media (min-width: 350px) and (max-width: 420px) {
+          :global(.shop-pro-inner .gi-product-box) {
+            flex: 0 0 50% !important;
+            max-width: 50% !important;
+          }
         }
       `}</style>
       <Row>
@@ -332,18 +378,7 @@ const FullWidth = ({
           {/* <!--Shop content End --> */}
         </Col>
         {/* <!-- Sidebar Area Start --> */}
-        <SidebarFilter
-          setCurrentPage={setCurrentPage}
-          min={minPrice}
-          max={maxPrice}
-          handlePriceChange={handlePriceChange}
-          selectedWeight={selectedWeight}
-          selectedCategory={selectedCategory}
-          selectedColor={selectedColor}
-          selectedTags={selectedTags}
-          isFilterOpen={isFilterOpen}
-          closeFilter={closeFilter}
-        />
+
       </Row>
     </LoadRowOrContainer>
   );

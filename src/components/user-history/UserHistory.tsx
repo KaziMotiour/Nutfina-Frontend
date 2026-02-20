@@ -160,7 +160,7 @@ const UserHistory = () => {
                     ) : !loading ? (
                       <div style={{ padding: "40px", textAlign: "center" }}>
                         <p>You have no orders yet!</p>
-                        <Link href="/shop" className="gi-btn-1" style={{ marginTop: "20px", display: "inline-block" }}>
+                        <Link href="/home" className="gi-btn-1" style={{ marginTop: "20px", display: "inline-block" }}>
                           Start Shopping
                         </Link>
                       </div>

@@ -3,7 +3,7 @@ import { Swiper, SwiperSlide } from "swiper/react";
 import ItemCard from "../../product-item/ItemCard";
 import FadeComponent from "@/components/animations/FadeComponent";
 import Spinner from "@/components/button/Spinner";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState, AppDispatch } from "@/store";
 import { getProducts, getProduct, Product, ProductVariant } from "@/store/reducers/shopSlice";
@@ -20,48 +20,93 @@ const RelatedProduct = ({
     (state: RootState) => state.shop
   );
 
+  // Refs to track what we've already fetched to prevent duplicate dispatches
+  const fetchedProductIdRef = useRef<string | number | null>(null);
+  const fetchedCategoryIdRef = useRef<number | string | null>(null);
+  const fetchedFeaturedRef = useRef<boolean>(false);
+
+  // Get stable category ID from current product
+  const categoryId = useMemo(() => {
+    if (!currentProduct) return null;
+    return typeof currentProduct.category === 'object' 
+      ? currentProduct.category.id 
+      : currentProduct.category;
+  }, [currentProduct?.id, currentProduct?.category]);
+
   // Fetch current product if productId is provided and product is not in store
   useEffect(() => {
+    if (!productId) {
+      fetchedProductIdRef.current = null;
+      return;
+    }
+
+    const productIdNum = Number(productId);
+    const isProductInStore = currentProduct && (
+      currentProduct.id === productIdNum || 
+      currentProduct.slug === productId
+    );
+    
+    // Only fetch if:
+    // 1. Product is not in store
+    // 2. We haven't already fetched this productId (or productId changed)
+    // 3. Not currently loading
+    const shouldFetch = !isProductInStore && 
+                       fetchedProductIdRef.current !== productId && 
+                       !loading;
+    
+    if (shouldFetch) {
+      fetchedProductIdRef.current = productId;
+      dispatch(getProduct(productId));
+    } else if (isProductInStore) {
+      // Update ref if product is already in store
+      fetchedProductIdRef.current = productId;
+    }
+  }, [productId, currentProduct?.id, currentProduct?.slug, dispatch, loading]);
+
+  // Reset related products refs when productId changes
+  useEffect(() => {
     if (productId) {
-      const productIdNum = Number(productId);
-      const isProductInStore = currentProduct && (
-        currentProduct.id === productIdNum || 
-        currentProduct.slug === productId
-      );
-      
-      if (!isProductInStore) {
-        dispatch(getProduct(productId));
+      // Only reset if productId actually changed
+      if (fetchedProductIdRef.current !== productId) {
+        fetchedCategoryIdRef.current = null;
+        fetchedFeaturedRef.current = false;
       }
     }
-  }, [productId, currentProduct, dispatch]);
+  }, [productId]);
 
   // Fetch related products when current product is available
   useEffect(() => {
-    if (currentProduct) {
-      const categoryId = typeof currentProduct.category === 'object' 
-        ? currentProduct.category.id 
-        : currentProduct.category;
-      
-      if (categoryId) {
+    if (currentProduct && categoryId) {
+      // Fetch products by category if we haven't already fetched for this category
+      if (fetchedCategoryIdRef.current !== categoryId && !loading) {
+        fetchedCategoryIdRef.current = categoryId;
+        fetchedFeaturedRef.current = false; // Reset featured flag
         dispatch(getProducts({ 
           category: categoryId.toString(), 
           is_active: true 
         }));
-      } else {
-        // If no category, fetch featured products
+      }
+    } else if (currentProduct && !categoryId) {
+      // If no category, fetch featured products (only once)
+      if (!fetchedFeaturedRef.current && !loading) {
+        fetchedFeaturedRef.current = true;
+        fetchedCategoryIdRef.current = null; // Reset category flag
         dispatch(getProducts({ 
           is_featured: true, 
           is_active: true 
         }));
       }
     } else if (!productId) {
-      // If no productId, show featured products
-      dispatch(getProducts({ 
-        is_featured: true, 
-        is_active: true 
-      }));
+      // If no productId, show featured products (only once)
+      if (!fetchedFeaturedRef.current && !loading) {
+        fetchedFeaturedRef.current = true;
+        dispatch(getProducts({ 
+          is_featured: true, 
+          is_active: true 
+        }));
+      }
     }
-  }, [currentProduct, dispatch, productId]);
+  }, [currentProduct?.id, categoryId, productId, dispatch, loading]); // Use stable dependencies
 
   // Transform backend product data to ItemCard format and filter out current product
   const transformedProducts = useMemo(() => {

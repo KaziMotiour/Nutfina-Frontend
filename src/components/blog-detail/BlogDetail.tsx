@@ -1,42 +1,15 @@
 "use client";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Col, Form, InputGroup } from "react-bootstrap";
-import * as formik from "formik";
-import * as yup from "yup";
-import CommentReplyingForm from "./CommentReplyingForm";
+import { useEffect } from "react";
+import { Col } from "react-bootstrap";
 import BlogCategories from "../blog-sidebar/blog-sidebar-area/BlogCategories";
 import RecentBlog from "../blog-sidebar/blog-sidebar-area/RecentBlog";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "@/store";
-import { useRouter } from "next/navigation";
-import { setSearchTerm } from "@/store/reducers/filterReducer";
-import { getBlogBySlug, clearCurrentBlog } from "@/store/reducers/blogSlice";
+import { getBlogBySlug } from "@/store/reducers/blogSlice";
 import Spinner from "../button/Spinner";
 import Link from "next/link";
 
-const getRegistrationData = () => {
-  if (typeof window !== "undefined") {
-    const data = localStorage.getItem("registrationData");
-    return data ? JSON.parse(data) : null;
-  }
-  return null;
-};
-
-const BlogDetail = ({ slug, order = "" }: any) => {
-  const { Formik } = formik;
-  const formikRef = useRef<any>(null);
-  const schema = yup.object().shape({
-    comment: yup.string().required(),
-  });
-
-  useEffect(() => {
-    console.log('slug', slug);
-  }, [slug]);
-
-  const login = useSelector(
-    (state: RootState) => state.registration.isAuthenticated
-  );
-
+const BlogDetail = ({ slug }: any) => {
   const { selectedCategory, searchTerm } = useSelector(
     (state: RootState) => state.filter
   );
@@ -45,33 +18,12 @@ const BlogDetail = ({ slug, order = "" }: any) => {
     (state: RootState) => state.blog
   );
 
-  const [userData, setUserData] = useState<any | null>(null);
-  const router = useRouter();
   const dispatch = useDispatch();
-  const [searchInput, setSearchInput] = useState<any>(searchTerm || "");
-  const [comments, setComments] = useState<any>([]);
-
-  const [replyingTo, setReplyingTo] = useState<number | null>(null);
-  const [newReply, setNewReply] = useState({
-    reply: "",
-  });
 
   useEffect(() => {
-    const data = getRegistrationData();
-    if (data?.length > 0) {
-      setUserData(data[data.length - 1]);
-    }
-  }, []);
-
-  useEffect(() => {
-    console.log('slug', slug);
     if (slug) {
-      console.log('Fetching blog with slug:', slug);
       dispatch(getBlogBySlug(slug) as any);
     }
-    // return () => {
-    //   dispatch(clearCurrentBlog());
-    // };
   }, [dispatch, slug]);
 
   useEffect(() => {
@@ -79,15 +31,6 @@ const BlogDetail = ({ slug, order = "" }: any) => {
       console.error('Blog fetch error:', error);
     }
   }, [error]);
-
-  const handleSearch = (event: any) => {
-    setSearchInput(event.target.value);
-  };
-
-  const handleSearchSubmit = () => {
-    dispatch(setSearchTerm(searchInput));
-    router.push("/blogs");
-  };
 
   // Format date
   const formatDate = (dateString: string) => {
@@ -116,9 +59,31 @@ const BlogDetail = ({ slug, order = "" }: any) => {
     return "";
   };
 
+  const getPrimaryImageUrl = () => {
+    if (!currentBlog?.images || currentBlog.images.length === 0) return null;
+    return currentBlog.images[0].image_url || currentBlog.images[0].image || null;
+  };
+
+  const getAdditionalImages = () => {
+    if (!currentBlog?.images || currentBlog.images.length <= 1) return [];
+    return currentBlog.images.slice(1, 4);
+  };
+
+  const renderContent = (content: string) => {
+    if (!content) return null;
+    return content
+      .split(/\n\s*\n/)
+      .filter((paragraph) => paragraph.trim().length > 0)
+      .map((paragraph, index) => (
+        <p key={index} className="gi-text" style={{ marginBottom: "18px", lineHeight: 1.85 }}>
+          {paragraph}
+        </p>
+      ));
+  };
+
   if (loading) {
     return (
-      <Col lg={8} md={12} className={`gi-blogs-rightside ${order}`}>
+      <Col lg={8} md={12} className="gi-blogs-rightside">
         <Spinner />
       </Col>
     );
@@ -126,7 +91,7 @@ const BlogDetail = ({ slug, order = "" }: any) => {
 
   if (error) {
     return (
-      <Col lg={8} md={12} className={`gi-blogs-rightside ${order}`}>
+      <Col lg={8} md={12} className="gi-blogs-rightside">
         <div className="gi-pro-content cart-pro-title">
           <p>Error loading blog: {error}</p>
           <p>Slug used: {slug}</p>
@@ -138,7 +103,7 @@ const BlogDetail = ({ slug, order = "" }: any) => {
 
   if (!loading && !currentBlog) {
     return (
-      <Col lg={8} md={12} className={`gi-blogs-rightside ${order}`}>
+      <Col lg={8} md={12} className="gi-blogs-rightside">
         <div className="gi-pro-content cart-pro-title">
           <p>Blog not found</p>
           <p>Slug used: {slug}</p>
@@ -149,115 +114,118 @@ const BlogDetail = ({ slug, order = "" }: any) => {
 
   if (!currentBlog) {
     return (
-      <Col lg={8} md={12} className={`gi-blogs-rightside ${order}`}>
+      <Col lg={8} md={12} className="gi-blogs-rightside">
         <Spinner />
       </Col>
     );
   }
 
-  const onSubmit = (data: any) => {
-    const date = new Date().toLocaleDateString();
-    setComments((prevComments: any) => [
-      ...prevComments,
-      {
-        ...data,
-        date,
-        profilePhoto: userData?.profilePhoto || "",
-        name: userData?.firstName || "",
-        lname: userData?.lastName || "",
-        email: userData?.email || "",
-        replies: [],
-      },
-    ]);
-
-    // Reset form after successful submission
-    if (formikRef.current) {
-      formikRef.current.resetForm();
-    }
-  };
-
-  const onReplySubmit = (data: any, index: number) => {
-    const date = new Date().toLocaleDateString();
-    setComments((prevComments) => {
-      const updatedComments = [...prevComments];
-      updatedComments[index] = {
-        ...updatedComments[index],
-        replies: [
-          ...updatedComments[index].replies,
-          {
-            ...data,
-            date,
-            profilePhoto: userData?.profilePhoto || "",
-            name: userData?.firstName || "",
-            lname: userData?.lastName || "",
-            email: userData?.email || "",
-          },
-        ],
-      };
-      return updatedComments;
-    });
-
-    setReplyingTo(null);
-  };
-
-  const handleReplyClick = (index: number) => {
-    setReplyingTo(index);
-  };
-
   return (
     <>
-      <Col lg={8} md={12} className={`gi-blogs-rightside ${order} `}>
+      <Col lg={8} md={12} className="gi-blogs-rightside order-2 order-lg-2">
         {/* <!-- Blog content Start --> */}
         <div className="gi-blogs-content">
           <div className="gi-blogs-inner">
             <div className="gi-single-blog-item">
+            <div style={{ fontSize: "14px", color: "#888", marginBottom: "20px" }}>
+            <Link href="/">Home</Link> /{" "}
+            <Link href="/blogs">Blog</Link> /{" "}
+            <span style={{ color: "#222" }}>{currentBlog.title}</span>
+          </div>
+  
+          {/* Title */}
+          <h1
+            style={{
+              fontSize: "36px",
+              fontWeight: 700,
+              lineHeight: 1.3,
+              marginBottom: "20px",
+            }}
+          >
+            {currentBlog.title}
+          </h1>
+  
+          {/* Meta Info */}
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: "15px",
+              fontSize: "14px",
+              color: "#777",
+              marginBottom: "30px",
+            }}
+          >
+            <span>
+              {formatDate(currentBlog.published_at || currentBlog.created)}
+            </span>
+            <span>•</span>
+            <span>{currentBlog.reading_time || 1} min read</span>
+            <span>•</span>
+            <span>{currentBlog.view_count || 0} views</span>
+            {currentBlog.category && (
+              <>
+                <span>•</span>
+                <Link
+                  href={`/blogs?category=${getCategorySlug()}`}
+                  style={{ color: "#5caf90", fontWeight: 500 }}
+                >
+                  {getCategory()}
+                </Link>
+              </>
+            )}
+          </div>
               <div className="single-blog-info">
-                {currentBlog.images && currentBlog.images.length > 0 && currentBlog.images[0].image_url && (
+                {getPrimaryImageUrl() && (
                   <figure className="blog-img">
                     <img
-                      src={currentBlog.images[0].image_url}
-                      alt={currentBlog.images[0].alt_text || currentBlog.title}
+                      src={getPrimaryImageUrl() as string}
+                      alt={currentBlog.images[0]?.alt_text || currentBlog.title}
                       style={{ 
                         width: '100%', 
                         height: 'auto', 
-                        maxHeight: '500px',
-                        objectFit: 'contain',
+                        maxHeight: '520px',
+                        objectFit: 'cover',
                         borderRadius: '16px',
-                        display: 'block'
+                        display: 'block',
+                        boxShadow: "0 10px 30px rgba(0, 0, 0, 0.08)"
+                      }}
+                      onError={(e) => {
+                        e.currentTarget.src = `${process.env.NEXT_PUBLIC_URL || ""}/assets/img/blog/placeholder.jpg`;
                       }}
                     />
                   </figure>
                 )}
                 <div className="single-blog-detail">
-                  <label>
-                    {formatDate(currentBlog.published_at || currentBlog.created)} -{" "}
-                    {currentBlog.category ? (
-                      <Link href={`/blogs?category=${getCategorySlug()}`}>
-                        {getCategory()}
-                      </Link>
-                    ) : (
-                      "Uncategorized"
-                    )}
-                  </label>
-                  <h3>{currentBlog.title || "Untitled Blog Post"}</h3>
+
                   {currentBlog.excerpt && (
-                    <p className="gi-text-highlight">{currentBlog.excerpt}</p>
+                      <div
+                        style={{
+                          background: "#f5f7f6",
+                          padding: "20px",
+                          borderRadius: "12px",
+                          marginBottom: "35px",
+                          marginTop: "20px",
+                          fontStyle: "italic",
+                          color: "#555",
+                          lineHeight: 1.8,
+                        }}
+                      >
+                        {currentBlog.excerpt}
+                      </div>
                   )}
                   {currentBlog.content ? (
-                    <div 
-                      className="gi-text"
-                      dangerouslySetInnerHTML={{ 
-                        __html: currentBlog.content.replace(/\n/g, '<br />') 
-                      }}
-                    />
+                    <div>{renderContent(currentBlog.content)}</div>
                   ) : (
                     <p className="gi-text">No content available for this blog post.</p>
                   )}
+
                   {/* Extra images at the end of content */}
-                  {currentBlog.images && currentBlog.images.length > 1 && (
+                  {getAdditionalImages().length > 0 && (
                     <div className="sub-img mt-4 mb-4">
+                      <h5 style={{ marginBottom: "14px" }}>Gallery</h5>
                       <div className="row">
-                        {currentBlog.images.slice(1, 3).map((img: any, index: number) => (
+                        {getAdditionalImages().map((img: any, index: number) => (
                           <div
                             key={img.id || index} 
                             className="col-md-6 mb-3"
@@ -271,23 +239,17 @@ const BlogDetail = ({ slug, order = "" }: any) => {
                               alt={img.alt_text || `Blog image ${index + 2}`}
                               style={{ 
                                 width: '100%', 
-                                height: 'auto', 
-                                maxHeight: '400px',
+                                height: '260px',
                                 objectFit: 'cover',
                                 display: 'block'
+                              }}
+                              onError={(e) => {
+                                e.currentTarget.src = `${process.env.NEXT_PUBLIC_URL || ""}/assets/img/blog/placeholder.jpg`;
                               }}
                             />
                           </div>
                         ))}
                       </div>
-                    </div>
-                  )}
-                  {currentBlog.category && (
-                    <div className="blog-category mt-4">
-                      <strong>Category: </strong>
-                      <Link href={`/blogs?category=${getCategorySlug()}`}>
-                        <span className="badge bg-primary">{getCategory()}</span>
-                      </Link>
                     </div>
                   )}
                   {currentBlog.tags && currentBlog.tags.length > 0 && (
@@ -300,193 +262,25 @@ const BlogDetail = ({ slug, order = "" }: any) => {
                       ))}
                     </div>
                   )}
-                  <div className="blog-meta mt-4 pt-3 border-top">
+                  {/* <div className="blog-meta mt-4 pt-3 border-top">
                     <small className="text-muted">
-                      <strong>Author:</strong> {currentBlog.author_name || "Admin"} | 
-                      <strong> Reading time:</strong> {currentBlog.reading_time || 1} min | 
-                      <strong> Views:</strong> {currentBlog.view_count || 0}
+                      <strong>By:</strong> {currentBlog.author_name || "Admin"}{" "}
+                      <span style={{ margin: "0 8px" }}>|</span>
+                      <strong>Views:</strong> {currentBlog.view_count || 0}
                     </small>
-                  </div>
+                  </div> */}
                 </div>
               </div>
             </div>
           </div>
-          {/* <!-- Comments Start -->  */}
-
-          {/* <div className="gi-blog-comments m-t-80">
-            {!login ? (
-              <div className="container">
-                <p>
-                  Please <a href="/login">login</a> or{" "}
-                  <a href="/register">register</a> to review the blog comments.
-                </p>
-              </div>
-            ) : (
-              <>
-                <div className="gi-blog-cmt-preview">
-                  <div className="gi-blog-comment-wrapper">
-                    <h4 className="gi-blog-dgi-title">
-                      Comments : {comments.length}
-                    </h4>
-                    {comments.map((data: any, index: number) => (
-                      <div key={index}>
-                        <div className="gi-single-comment-wrapper mt-35">
-                          <div className="gi-blog-user-img">
-                            <img
-                              src={
-                                data.profilePhoto ||
-                                process.env.NEXT_PUBLIC_URL +
-                                  "/assets/img/avatar/placeholder.jpg"
-                              }
-                              alt="blog image"
-                            />
-                          </div>
-                          <div className="gi-blog-comment-content">
-                            <h5>
-                              {data.name} {data.lname}
-                            </h5>
-                            <span>{data.date} </span>
-                            <p>{data.comment} </p>
-
-                            {replyingTo === index ? (
-                              <div className="gi-blog-cmt-form">
-                                <div className="gi-blog-reply-wrapper mt-50">
-                                  <CommentReplyingForm
-                                    index={index}
-                                    onFormSubmit={onReplySubmit}
-                                  />
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="gi-blog-details-btn">
-                                <a onClick={() => handleReplyClick(index)}>
-                                  Reply
-                                </a>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                        {data.replies.map((reply: any, replyIndex: number) => (
-                          <div
-                            key={replyIndex}
-                            className="gi-single-comment-wrapper sub-cmt"
-                          >
-                            <div className="gi-blog-user-img">
-                              <img
-                                src={
-                                  reply.profilePhoto ||
-                                  process.env.NEXT_PUBLIC_URL +
-                                    "/assets/img/avatar/placeholder.jpg"
-                                }
-                                alt="blog image"
-                              />
-                            </div>
-                            <div className="gi-blog-comment-content">
-                              <h5>
-                                {reply.name} {reply.lname}
-                              </h5>
-                              <span>{reply.date}</span>
-                              <p>{reply.reply}</p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div className="gi-blog-cmt-form">
-                  <div className="gi-blog-reply-wrapper mt-50">
-                    <h4 className="gi-blog-dgi-title">Leave A Reply</h4>
-
-                    <Formik
-                      innerRef={formikRef}
-                      validationSchema={schema}
-                      onSubmit={onSubmit}
-                      initialValues={{
-                        comment: "",
-                      }}
-                    >
-                      {({
-                        handleSubmit,
-                        handleChange,
-                        values,
-                        touched,
-                        errors,
-                      }) => (
-                        <Form
-                          noValidate
-                          onSubmit={handleSubmit}
-                          className={`gi-blog-form ${
-                            errors.length ? "was-validated" : ""
-                          }`}
-                          action="#"
-                        >
-                          <div className="row">
-                            <div className="col-md-12">
-                              <div className="gi-text-leave">
-                                <Form.Group>
-                                  <InputGroup hasValidation>
-                                    <Form.Control
-                                      as="textarea"
-                                      name="comment"
-                                      value={values.comment}
-                                      onChange={handleChange}
-                                      placeholder="Message"
-                                      rows={3}
-                                      required
-                                      isInvalid={!!errors.comment}
-                                    />
-                                    <Form.Control.Feedback
-                                      style={{ marginBottom: "10px" }}
-                                      type="invalid"
-                                    >
-                                      Please enter comment
-                                    </Form.Control.Feedback>
-                                  </InputGroup>
-                                </Form.Group>
-                                <button type="submit" className="gi-btn-2 mt-4">
-                                  Submit
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        </Form>
-                      )}
-                    </Formik>
-                  </div>
-                </div>
-              </>
-            )}
-          </div> */}
-
-          {/* <!-- Comments End --> */}
         </div>
         {/* <!--Blog content End --> */}
       </Col>
       <Col
         lg={4}
         md={12}
-        className={`gi-blogs-sidebar gi-blogs-leftside m-t-991 ${(order = -1)}`}
+        className="gi-blogs-sidebar gi-blogs-leftside m-t-991 order-1 order-lg-1"
       >
-        {/* <div className="gi-blog-search">
-          <div className="gi-blog-search-form">
-            <input
-              style={{ boxShadow: "none" }}
-              className="form-control"
-              placeholder="Search Our Blog"
-              type="text"
-              value={searchInput}
-              onChange={handleSearch}
-            />
-            <button
-              onClick={handleSearchSubmit}
-              className="submit"
-              type="button"
-            >
-              <i className="gicon gi-search"></i>
-            </button>
-          </div>
-        </div> */}
         <div className="gi-blog-sidebar-wrap">
           {/* <!-- Sidebar Recent Blog Block --> */}
           <div className="gi-sidebar-block gi-sidebar-recent-blog">

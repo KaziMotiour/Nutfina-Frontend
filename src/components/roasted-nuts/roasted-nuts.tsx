@@ -107,6 +107,7 @@ const RoastedNuts = () => {
                 variant_id: firstVariant.id, // Explicitly set variant_id for cart
                 product_id: product.id, // Keep product ID for reference
                 title: product.name,
+                excerpt: product.excerpt,
                 newPrice: price,
                 oldPrice: oldPrice || price,
                 sale: firstVariant.on_sale ? "Sale" : "",

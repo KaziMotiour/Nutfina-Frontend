@@ -29,33 +29,33 @@ function HeaderTwo({ cartItemCount, wishlistItems }: { cartItemCount: number; wi
   const [searchInput, setSearchInput] = useState(searchTerm || "");
   const [showDropdown, setShowDropdown] = useState(false);
   const [searchResults, setSearchResults] = useState<Product[]>([]);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Debounce search function
   const debounceSearch = useCallback(
-    (() => {
-      let timeoutId: NodeJS.Timeout;
-      return (searchTerm: string) => {
-        clearTimeout(timeoutId);
-        timeoutId = setTimeout(async () => {
-          if (searchTerm.trim().length >= 2) {
-            try {
-              const result = await dispatch(
-                getProducts({ search: searchTerm.trim(), is_active: true })
-              ).unwrap();
-              const productsList = Array.isArray(result) ? result : result?.results || [];
-              setSearchResults(productsList.slice(0, 5)); // Limit to 5 results
-              setShowDropdown(true);
-            } catch (error) {
-              console.error("Search error:", error);
-              setSearchResults([]);
-            }
-          } else {
+    (searchTerm: string) => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      timeoutRef.current = setTimeout(async () => {
+        if (searchTerm.trim().length >= 2) {
+          try {
+            const result = await dispatch(
+              getProducts({ search: searchTerm.trim(), is_active: true })
+            ).unwrap();
+            const productsList = Array.isArray(result) ? result : result?.results || [];
+            setSearchResults(productsList.slice(0, 5)); // Limit to 5 results
+            setShowDropdown(true);
+          } catch (error) {
+            console.error("Search error:", error);
             setSearchResults([]);
-            setShowDropdown(false);
           }
-        }, 300);
-      };
-    })(),
+        } else {
+          setSearchResults([]);
+          setShowDropdown(false);
+        }
+      }, 300);
+    },
     [dispatch]
   );
 
@@ -75,7 +75,7 @@ function HeaderTwo({ cartItemCount, wishlistItems }: { cartItemCount: number; wi
   const handleProductSelect = (product: Product) => {
     setShowDropdown(false);
     setSearchInput("");
-    router.push(`/product-details/${product.id}`);
+    router.push(`/product-details/${product.slug}`);
   };
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -87,6 +87,15 @@ function HeaderTwo({ cartItemCount, wishlistItems }: { cartItemCount: number; wi
       if (firstItem) firstItem.focus();
     }
   };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -136,7 +145,6 @@ function HeaderTwo({ cartItemCount, wishlistItems }: { cartItemCount: number; wi
   const handleLogout = () => {
     dispatch(logout());
     router.push("/home");
-    window.location.reload();
   };
 
   return (
@@ -334,14 +342,14 @@ function HeaderTwo({ cartItemCount, wishlistItems }: { cartItemCount: number; wi
                                 padding: "4px 8px",
                               }}
                             >
-                              View all results for "{searchInput}"
+                              View all results for &quot;{searchInput}&quot;
                               <i className="fi-rr-arrow-right" style={{ marginLeft: "4px" }}></i>
                             </button>
                           </div>
                         </>
                       ) : (
                         <div style={{ padding: "16px", textAlign: "center", color: "#6b7280" }}>
-                          No products found for "{searchInput}"
+                          No products found for &quot;{searchInput}&quot;
                         </div>
                       )}
                     </div>

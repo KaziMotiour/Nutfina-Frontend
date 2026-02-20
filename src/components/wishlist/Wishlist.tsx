@@ -40,6 +40,9 @@ const Wishlist = ({
   const wishlistItems = useSelector(
     (state: RootState) => state.wishlist.wishlist
   );
+  useEffect(() => {
+    console.log(wishlistItems);
+  }, [wishlistItems]);
   const cart = useSelector((state: RootState) => state.order.cart);
   const cartItems = cart?.items || [];
   const cartLoading = useSelector((state: RootState) => state.order.loading);
@@ -59,7 +62,6 @@ const Wishlist = ({
 
   // Fetch related products based on wishlist items' categories
   useEffect(() => {
-    console.log(wishlistItems);
     if (wishlistItems.length > 0) {
       // Get unique categories from wishlist items
       const categories = new Set<string>();
@@ -68,7 +70,6 @@ const Wishlist = ({
           categories.add(item.category_slug);
         }
       });
-      console.log(categories);
       // If we have categories, fetch products from those categories
       if (categories.size > 0) {
         const categoryArray = Array.from(categories);
@@ -233,6 +234,7 @@ const Wishlist = ({
         quantity: 1,
         date: product.created,
         location: "Bangladesh",
+        category_slug: product.category_slug,
         brand: categoryName,
       };
     }).filter((item: any) => item !== null);
@@ -318,13 +320,13 @@ const Wishlist = ({
                                     title={
                                       data.status === "Out Of Stock"
                                         ? "Out of Stock"
-                                        : isItemInCart(getVariantId(data))
-                                        ? `Update Cart (${getCartItemQuantity(getVariantId(data))} in cart)`
+                                        : isItemInCart(getVariantId(data as Item))
+                                        ? `Update Cart (${getCartItemQuantity(getVariantId(data as Item))} in cart)`
                                         : "Add To Cart"
                                     }
                                     onClick={() => {
                                       if (data.status !== "Out Of Stock" && addingToCart !== data.id) {
-                                        handleCart(data);
+                                        handleCart(data as Item);
                                       }
                                     }}
                                     style={{
@@ -340,7 +342,7 @@ const Wishlist = ({
                                   >
                                     {addingToCart === data.id ? (
                                       <i className="fi-rr-spinner"></i>
-                                    ) : isItemInCart(getVariantId(data)) ? (
+                                    ) : isItemInCart(getVariantId(data as Item)) ? (
                                       <>
                                         <i className="fi-rr-shopping-basket"></i>
                                         <span style={{ 

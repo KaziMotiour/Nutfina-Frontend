@@ -25,6 +25,7 @@ export interface ProductImage {
 export interface Product {
   id: number;
   name: string;
+  excerpt: string;
   slug: string;
   category: number | Category;
   category_name: string;
@@ -85,6 +86,7 @@ export interface ShopState {
   categories: Category[];
   products: Product[];
   featuredProducts: Product[];
+  relatedProducts: Product[];
   productVariants: ProductVariant[];
   inventory: Inventory[];
   currentProduct: Product | null;
@@ -102,6 +104,7 @@ const initialState: ShopState = {
   categories: [],
   products: [],
   featuredProducts: [],
+  relatedProducts: [],
   productVariants: [],
   inventory: [],
   currentProduct: null,
@@ -232,10 +235,21 @@ export const getFeaturedProducts = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await apiCall("/shop/products/featured/");
-      console.log(response);
       return Array.isArray(response) ? response : response.results || [];
     } catch (error: any) {
       return rejectWithValue(error.message || "Failed to get featured products");
+    }
+  }
+);
+
+export const getRelatedProducts = createAsyncThunk(
+  "shop/getRelatedProducts",
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await apiCall("/shop/products/related/");
+      return Array.isArray(response) ? response : response.results || [];
+    } catch (error: any) {
+      return rejectWithValue(error.message || "Failed to get related products");
     }
   }
 );
@@ -256,6 +270,7 @@ export const createProduct = createAsyncThunk(
           method: "POST",
           headers,
           body: data instanceof FormData ? data : JSON.stringify(data),
+          credentials: "include", // Include cookies for session management
         });
 
         // If 401, try to refresh token and retry
@@ -302,6 +317,7 @@ export const updateProduct = createAsyncThunk(
           method: "PATCH",
           headers,
           body: data instanceof FormData ? data : JSON.stringify(data),
+          credentials: "include", // Include cookies for session management
         });
 
         // If 401, try to refresh token and retry
@@ -558,6 +574,18 @@ const shopSlice = createSlice({
         state.featuredProducts = action.payload;
       })
       .addCase(getFeaturedProducts.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      .addCase(getRelatedProducts.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(getRelatedProducts.fulfilled, (state, action) => {
+        state.loading = false;
+        state.relatedProducts = action.payload;
+      })
+      .addCase(getRelatedProducts.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       });

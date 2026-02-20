@@ -18,23 +18,10 @@ function Footer({ onSuccess = () => {}, onError = () => {} }) {
   const dispatch = useDispatch();
   const [dropdownState, setDropdownState] = useState(null);
   const { selectedCategory } = useSelector((state: RootState) => state.filter);
-  const { data, error } = useSWR(`/api/shopcategory`, fetcher, {
-    onSuccess,
-    onError,
-  });
-
-  if (error) return <div>Failed to load products</div>;
-  if (!data) return <div></div>;
-
-  const getData = () => {
-    return data.length > 6 ? slice(data, 0, 6) : data;
-  };
 
   const toggleDropdown = (dropdown: any) => {
     setDropdownState((menu) => (menu === dropdown ? null : dropdown));
   };
-
-  const CategoryData = getData();
 
   const handleCategoryChange = (category) => {
     const updatedCategory = selectedCategory.includes(category)

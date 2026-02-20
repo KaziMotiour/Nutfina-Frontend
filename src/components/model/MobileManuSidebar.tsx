@@ -26,7 +26,6 @@ const MobileManuSidebar = ({ isMobileMenuOpen, closeMobileManu, toggleMainMenu, 
   const HandleLogout = () => {
     dispatch(logout());
     router.push("/home");
-    window.location.reload();
   };
 
   return (

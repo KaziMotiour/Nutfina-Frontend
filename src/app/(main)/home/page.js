@@ -20,14 +20,14 @@ const page = () => {
             <HeroSlider />
             <Category />
             <Deal />
-            <RoastedNuts />
+            {/* <RoastedNuts /> */}
             {/* <NutPowder /> */}
-            {/* <Banner /> */}
+            <Banner />
             {/* <GroceryArrials /> */}
             {/* <OfferBanners /> */}
             {/* <Services /> */}
             {/* <Trending /> */}
-            {/* <LatestBlog /> */}
+            <LatestBlog />
         </>
     )
 }

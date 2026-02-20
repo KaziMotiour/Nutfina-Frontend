@@ -18,6 +18,21 @@ const CashewRoastedNuts: CashewRoastedNuts[] = [
     },
 ];
 
+const SaltedRoastedNuts: CashewRoastedNuts[] = [
+  {
+    name: "Salted Cashew",
+    href: "/products/?category=roasted-nuts",
+  },
+  {
+    name: "Salted Almond",
+    href: "/products/?category=roasted-nuts",
+  },
+  {
+    name: "Salted Peanuts",
+    href: "/products/?category=roasted-nuts",
+  },
+];
+
 const NutPowder = [
     {
         name: "Cashew Nut Powder",
@@ -30,5 +45,5 @@ const NutPowder = [
 ]
 
 
-export { CashewRoastedNuts, NutPowder };
+export { CashewRoastedNuts, NutPowder, SaltedRoastedNuts };
   

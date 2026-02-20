@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useMemo } from "react";
+import { useRef, useMemo, useState } from "react";
 import { Col, Row } from "react-bootstrap";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Autoplay } from "swiper/modules";
@@ -22,6 +22,8 @@ const Deal = ({
   const swiperRef = useRef<SwiperType | null>(null);
   const prevButtonRef = useRef<HTMLButtonElement>(null);
   const nextButtonRef = useRef<HTMLButtonElement>(null);
+  const [maxWidth, setMaxWidth] = useState<string>("100%");
+  const [maxHeight, setMaxHeight] = useState<string>("100%");
 
   const { featuredProducts, loading, error } = useSelector((state: RootState) => state.shop);
 
@@ -30,7 +32,22 @@ const Deal = ({
   }, [dispatch]);
 
   useEffect(() => {
-    console.log(featuredProducts);
+  }, [featuredProducts]);
+
+  useEffect(() => {
+    if (featuredProducts && featuredProducts.length === 1) {
+      setMaxWidth("350px");
+      setMaxHeight("500px");
+    } else if (featuredProducts && featuredProducts.length === 2) {
+      setMaxWidth("650px");
+      setMaxHeight("500px");
+    } else if (featuredProducts && featuredProducts.length === 3) {
+      setMaxWidth("950px");
+      setMaxHeight("500px");
+    } else if (featuredProducts && featuredProducts.length === 4) {
+      setMaxWidth("1250px");
+      setMaxHeight("500px");
+    }
   }, [featuredProducts]);
 
   // Transform backend product data to ItemCard format
@@ -92,6 +109,7 @@ const Deal = ({
             imageTwo: getImageUrl(secondImage),
             category: categoryName,
             categorySlug: product.category_slug,
+            excerpt: product.excerpt,
             status: firstVariant?.is_active ? "Available" : "Out of Stock",
             rating: 5, // Default rating, can be added to backend later
             weight: firstVariant?.weight_grams 
@@ -188,6 +206,11 @@ const Deal = ({
                       <p>Don`t wait. The time will never be just right.</p>
                     </div>
                   </Fade>
+                  <span className="title-link">
+                      <a href="/products">
+                        All Products<i className="fi-rr-angle-double-small-right"></i>
+                      </a>
+                </span>
                 </div>
                 <Fade
                   triggerOnce
@@ -220,34 +243,42 @@ const Deal = ({
                             slidesPerView: 1,
                             spaceBetween: 10,
                           },
+                          350: {
+                            slidesPerView: transformedProducts.length >= 2 ? 2 : transformedProducts.length,
+                            spaceBetween: 2,
+                          },
                           425: {
-                            slidesPerView: 2,
-                            spaceBetween: 15,
+                            slidesPerView: transformedProducts.length >= 2 ? 2 : transformedProducts.length,
+                            spaceBetween: 5,
                           },
                           640: {
-                            slidesPerView: 2,
+                            slidesPerView: transformedProducts.length >= 2 ? 2 : transformedProducts.length,
                             spaceBetween: 15,
                           },
                           768: {
-                            slidesPerView: 3,
+                            slidesPerView: transformedProducts.length >= 3 ? 3 : transformedProducts.length,
                             spaceBetween: 20,
                           },
                           1024: {
-                            slidesPerView: 3,
+                            slidesPerView: transformedProducts.length >= 3 ? 3 : transformedProducts.length,
                             spaceBetween: 20,
                           },
                           1200: {
-                            slidesPerView: 5,
+                            slidesPerView:  transformedProducts.length >= 5 ? 5 : transformedProducts.length,
                             spaceBetween: 20,
                           },
                           1440: {
-                            slidesPerView: 5,
+                            slidesPerView: transformedProducts.length >= 5 ? 5 : transformedProducts.length,
                             spaceBetween: 20,
                           },
                         }}
                         className="slick-track"
                         allowTouchMove={true}
                         grabCursor={true}
+                        style={{
+                          maxWidth: maxWidth,
+                          maxHeight: maxHeight,
+                        }}
                       >
                         {getData()?.map((item: any, index: number) => (
                           <SwiperSlide key={index} className="slick-slide">

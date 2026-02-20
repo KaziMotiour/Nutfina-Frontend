@@ -12,7 +12,7 @@ export const metadata = {
   description: "A healthy lifestyle platform.",
 
   icons: {
-    icon: "/favicon.ico",
+    icon: "/header-log-2.png",
   },
 };
 

@@ -23,13 +23,13 @@ const Banner = () => {
                 <h2 className="d-none">Offers</h2>
                 <div className="gi-bnr-detail">
                   <div className="gi-bnr-info">
-                    <h2>
-                      Nut Nutrition Powder<br></br>Healthy Products
+                    <h2 style={{ color: 'white' }}>
+                      Nutfina Products<br></br> Better Nuts Batter You
                     </h2>
-                    <h3>
-                      10% off sale <span>Hurry up!!!</span>
+                    <h3 style={{ color: 'green' }}>
+                      On Sale Now <span>Hurry up!!!</span>
                     </h3>
-                    <Link href="/shop-left-sidebar-col-3" className="gi-btn-2">
+                    <Link href="/products" className="gi-btn-2">
                       Shop now
                     </Link>
                   </div>

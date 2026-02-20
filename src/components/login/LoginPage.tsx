@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import Breadcrumb from "../breadcrumb/Breadcrumb";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Container, Form } from "react-bootstrap";
 import { showErrorToast, showSuccessToast } from "../toast-popup/Toastify";
 import { useDispatch, useSelector } from "react-redux";
@@ -15,6 +15,7 @@ const LoginPage = () => {
   const [password, setPassword] = useState("");
   const [validated, setValidated] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const dispatch = useDispatch<AppDispatch>();
   
   const userState = useSelector((state: RootState) => state.user);
@@ -30,9 +31,14 @@ const LoginPage = () => {
 
   useEffect(() => {
     if (isAuthenticated && user) {
-      router.push("/home");
+      const redirectParam = searchParams.get("redirect");
+      const redirectPath =
+        redirectParam && redirectParam.startsWith("/")
+          ? redirectParam
+          : "/home";
+      router.push(redirectPath);
     }
-  }, [isAuthenticated, user, router]);
+  }, [isAuthenticated, user, router, searchParams]);
 
   useEffect(() => {
     if (error) {

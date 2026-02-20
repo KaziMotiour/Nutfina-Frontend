@@ -1,17 +1,58 @@
 "use client";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { Swiper, SwiperSlide } from "swiper/react";
 import ItemCard from "../product-item/ItemCard";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState, AppDispatch } from "../../store";
-import { getCart, removeFromCart, updateCartItem, CartItem as BackendCartItem } from "../../store/reducers/orderSlice";
-import { getProducts, Product } from "../../store/reducers/shopSlice";
+import { getCart, removeFromCart, updateCartItem, CartItem as BackendCartItem, optimisticUpdateCartItem, rollbackCartItemUpdate } from "../../store/reducers/orderSlice";
+import { getRelatedProducts, Product, ProductVariant } from "../../store/reducers/shopSlice";
 import { Fade } from "react-awesome-reveal";
 import Spinner from "../button/Spinner";
 import QuantitySelector from "../quantity-selector/QuantitySelector";
 import Link from "next/link";
 import { API_BASE_URL } from "../../utils/api";
 import category from "@/utility/data/category";
+
+
+// Helper function to get backend base URL (without /api)
+const getBackendBaseUrl = () => {
+  const apiUrl = API_BASE_URL || "http://localhost:8000/api";
+  // Remove /api from the end if present
+  return apiUrl.replace(/\/api$/, "");
+};
+
+// Helper function to construct full image URL
+const getImageUrl = (imagePath: string | null | undefined): string => {
+  if (!imagePath) return "/assets/img/common/placeholder.png";
+  
+  // If already a full URL (starts with http:// or https://), return as is
+  if (imagePath.startsWith("http://") || imagePath.startsWith("https://")) {
+    return imagePath;
+  }
+  
+  // If it's a relative path starting with /, prepend backend base URL
+  if (imagePath.startsWith("/")) {
+    return `${getBackendBaseUrl()}${imagePath}`;
+  }
+  
+  // Otherwise, assume it's a relative path and prepend backend base URL with /
+  return `${getBackendBaseUrl()}/${imagePath}`;
+};
+
+// Helper function to get image URL from image object (for product/variant images)
+const getImageUrlFromObject = (img: any): string => {
+  if (!img) return "/assets/img/common/placeholder.png";
+  return img.image || img.image_url || "/assets/img/common/placeholder.png";
+};
+
+// Helper function to format weight
+const formatWeight = (weightGrams: number | null | undefined): string => {
+  if (!weightGrams) return "N/A";
+  return weightGrams < 1000 
+    ? `${weightGrams}g` 
+    : `${(weightGrams / 1000).toFixed(1)}kg`;
+};
+
 
 const Cart = ({
   onSuccess = () => {},
@@ -21,82 +62,57 @@ const Cart = ({
   const dispatch = useDispatch<AppDispatch>();
   const cart = useSelector((state: RootState) => state.order.cart);
   const cartLoading = useSelector((state: RootState) => state.order.loading);
-  const { products, loading: productsLoading } = useSelector((state: RootState) => state.shop);
+  const { relatedProducts, loading: productsLoading } = useSelector((state: RootState) => state.shop);
 
-  // Helper function to get backend base URL (without /api)
-  const getBackendBaseUrl = () => {
-    const apiUrl = API_BASE_URL || "http://localhost:8000/api";
-    // Remove /api from the end if present
-    return apiUrl.replace(/\/api$/, "");
-  };
-
-  // Helper function to construct full image URL
-  const getImageUrl = (imagePath: string | null | undefined): string => {
-    if (!imagePath) return "/assets/img/common/placeholder.png";
-    
-    // If already a full URL (starts with http:// or https://), return as is
-    if (imagePath.startsWith("http://") || imagePath.startsWith("https://")) {
-      return imagePath;
-    }
-    
-    // If it's a relative path starting with /, prepend backend base URL
-    if (imagePath.startsWith("/")) {
-      return `${getBackendBaseUrl()}${imagePath}`;
-    }
-    
-    // Otherwise, assume it's a relative path and prepend backend base URL with /
-    return `${getBackendBaseUrl()}/${imagePath}`;
-  };
-
-  // Fetch cart on mount
+  // Fetch cart on mount only if not already loading and cart doesn't exist
   useEffect(() => {
-    dispatch(getCart());
-  }, [dispatch]);
+    if (!cartLoading && !cart) {
+      dispatch(getCart()); 
+    }
+  }, [dispatch, cartLoading, cart]);
 
+  // Track previous cart item IDs to detect actual item changes (not quantity changes)
+  const previousItemIdsRef = useRef<Set<number>>(new Set());
+  const hasFetchedRef = useRef<boolean>(false);
 
-  // Fetch related products based on cart items' categories
+  // Fetch related products from backend
+  // Backend handles: category filtering, excluding cart items, and returning featured if no cart
+  // Only fetch when items are added/removed, not when quantities change
   useEffect(() => {
-    if (cart && cart.items && cart.items.length > 0) {
-      // Get unique categories from cart items
-      const categories = new Set<number>();
-      cart.items.forEach((item: BackendCartItem) => {
-        const product = (item as any).product_detail;
-
-        if (product && product.category) {
-          const categorySlug = typeof product.category_slug === 'string' ? product.category_slug : product.category.slug;
-          console.log(categorySlug);
-          if (categorySlug) {
-            categories.add(categorySlug);
-          }
-        }
-      });
-
-      // Get cart item product IDs to exclude them from related products
-      const cartProductIds = new Set(
-        cart.items.map((item: BackendCartItem) => {
-          const product = (item as any).product_detail;
-          return product?.id;
-        }).filter(Boolean)
-      );
-      console.log(categories);
-      
-      // Fetch products from the same categories, excluding cart items
-      if (categories.size > 0) {
-        const categoryArray = Array.from(categories);
-        // Fetch products from the first category (or you could fetch from all)
-
-        dispatch(getProducts({ 
-          category: categoryArray[0]?.toString(), 
-          is_active: true,
-          page: 1
-        }));
-      } else {
-        // If no categories, fetch featured products
-        dispatch(getProducts({ is_featured: true, is_active: true }));
+    if (!cart) {
+      // If cart is null, fetch related products (backend will return featured products)
+      if (!hasFetchedRef.current) {
+        dispatch(getRelatedProducts());
+        hasFetchedRef.current = true;
       }
-    } else {
-      // If cart is empty, show featured products
-      dispatch(getProducts({ is_featured: true, is_active: true }));
+      previousItemIdsRef.current = new Set();
+      return;
+    }
+
+    if (!cart.items || cart.items.length === 0) {
+      // If cart is empty, fetch related products (backend will return featured products)
+      if (!hasFetchedRef.current) {
+        dispatch(getRelatedProducts());
+        hasFetchedRef.current = true;
+      }
+      previousItemIdsRef.current = new Set();
+      return;
+    }
+
+    // Get current item IDs (not quantities - just IDs to detect add/remove)
+    const currentItemIds = new Set(cart.items.map((item: BackendCartItem) => item.id));
+    
+    // Check if items were added/removed (item IDs changed)
+    const itemIdsChanged = 
+      currentItemIds.size !== previousItemIdsRef.current.size ||
+      Array.from(currentItemIds).some(id => !previousItemIdsRef.current.has(id)) ||
+      Array.from(previousItemIdsRef.current).some(id => !currentItemIds.has(id));
+
+    // Only fetch if items were added/removed or this is the first fetch
+    if (itemIdsChanged || !hasFetchedRef.current) {
+      dispatch(getRelatedProducts());
+      previousItemIdsRef.current = currentItemIds;
+      hasFetchedRef.current = true;
     }
   }, [cart, dispatch]);
 
@@ -117,6 +133,9 @@ const Cart = ({
       // Get product name - prefer product name, fallback to variant name
       const title = product.name || variant.name || "Product";
 
+      // Get weight from variant
+      const weight = variant.weight_grams ? formatWeight(parseFloat(variant.weight_grams.toString())) : "N/A";
+
       // Get image URL - check multiple possible fields and construct full URL
       const imagePath = firstImage.image || firstImage.image_url || firstImage.url;
       const imageUrl = getImageUrl(imagePath);
@@ -129,6 +148,7 @@ const Cart = ({
         quantity: item.quantity,
         image: imageUrl,
         line_total: parseFloat(item.line_total),
+        weight: weight,
       };
     });
   }, [cart]);
@@ -149,124 +169,82 @@ const Cart = ({
       return;
     }
 
+    // Optimistic update: Update UI immediately
+    dispatch(optimisticUpdateCartItem({ id: itemId, quantity: newQuantity }));
+
     try {
+      // Send request to backend (for persistence)
+      // Cart is already updated with frontend calculations via optimistic update
       await dispatch(updateCartItem({ id: itemId, quantity: newQuantity })).unwrap();
+      // Backend response is ignored - we keep frontend-calculated values
     } catch (error) {
+      // Rollback optimistic update if backend request fails
       console.error("Failed to update cart item quantity:", error);
+      dispatch(rollbackCartItemUpdate({ id: itemId }));
+      // Optionally show an error message to the user
     }
   };
 
   // Transform backend products to ItemCard format and exclude cart items
-  const relatedProducts = useMemo(() => {
-    if (!products || products.length === 0) return [];
+  // Transform related products from backend to ItemCard format
+  // Backend already handles: category filtering, excluding cart items, and limiting to 10
+  const transformedRelatedProducts = useMemo(() => {
+    if (!relatedProducts || relatedProducts.length === 0) return [];
 
-    // Get cart product IDs and variant IDs to exclude
-    const cartProductIds = new Set<number>();
-    const cartVariantIds = new Set<number>();
-    
-    if (cart?.items && cart.items.length > 0) {
-      cart.items.forEach((item: BackendCartItem) => {
-        const product = (item as any).product_detail;
-        const variant = (item as any).variant_detail;
-        
-        // Add product ID if available
-        if (product?.id) {
-          cartProductIds.add(product.id);
-        }
-
-        console.log(variant);
-        
-        
-        // Add variant ID if available
-        if (variant?.id) {
-          cartVariantIds.add(variant.id);
-        }
-        
-        // Also check if variant has product reference
-        if (variant?.product) {
-          const variantProductId = typeof variant.product === 'object' ? variant.product.id : variant.product;
-          if (variantProductId) {
-            cartProductIds.add(variantProductId);
-          }
-        }
-      });
-    }
-
-    // Filter out products that are already in cart
-    // Check both product ID and if any of its variants are in cart
-    const filteredProducts = products.filter((product: Product) => {
-      // Exclude if product ID is in cart
-      if (cartProductIds.has(product.id)) {
-        return false;
-      }
-      
-      // Exclude if any variant of this product is in cart
-      if (product.variants && product.variants.length > 0) {
-        const hasVariantInCart = product.variants.some((variant: any) => {
-          const variantId = typeof variant === 'object' ? variant.id : variant;
-          return cartVariantIds.has(variantId);
-        });
-        if (hasVariantInCart) {
-          return false;
-        }
-      }
-      
-      return true;
-    });
-
-    // Transform and limit to 10 products
-    return filteredProducts
-      .slice(0, 10)
+    return relatedProducts
+      .filter((product: Product) => product.variants && product.variants.length > 0)
       .map((product: Product) => {
-        // Get the first variant (preferably featured) or use base price
-        const firstVariant = product.variants && product.variants.length > 0 
-          ? product.variants[0] 
-          : null;
+        const firstVariant = product.variants![0]; // Safe: already filtered for variants
         
         // Get images - prefer variant images, fallback to product images
-        const images = firstVariant?.images && firstVariant.images.length > 0
+        const images = (firstVariant?.images && firstVariant.images.length > 0)
           ? firstVariant.images
-          : firstVariant?.product_images && firstVariant.product_images.length > 0
+          : (firstVariant?.product_images && firstVariant.product_images.length > 0)
           ? firstVariant.product_images
           : product.images || [];
 
-        const firstImage = images.find((img: any) => img.is_active) || images[0];
-        const secondImage = images.find((img: any, idx: number) => idx === 1 && img.is_active) || images[1] || firstImage;
+        const firstImage = images?.find((img: any) => img.is_active) || images?.[0];
+        const secondImage = images?.find((img: any, idx: number) => idx === 1 && img.is_active) || images?.[1] || firstImage;
 
-        const price = firstVariant ? parseFloat(firstVariant.final_price) : parseFloat(product.base_price);
-        const oldPrice = firstVariant && firstVariant.on_sale 
-          ? parseFloat(firstVariant.price) 
-          : null;
+        const price = parseFloat(firstVariant.final_price);
+        const oldPrice = firstVariant.on_sale ? parseFloat(firstVariant.price) : null;
+        const categoryName = product.category_name || 'Uncategorized';
+        const weight = formatWeight(firstVariant.weight_grams);
 
-        // Get image URL
-        const getImageUrl = (img: any) => {
-          if (!img) return "/assets/img/common/placeholder.png";
-          const imagePath = img.image || img.image_url || img.url;
-          if (!imagePath) return "/assets/img/common/placeholder.png";
-          
-          if (imagePath.startsWith("http://") || imagePath.startsWith("https://")) {
-            return imagePath;
-          }
-          
-          const backendBaseUrl = (API_BASE_URL || "http://localhost:8000/api").replace(/\/api$/, "");
-          if (imagePath.startsWith("/")) {
-            return `${backendBaseUrl}${imagePath}`;
-          }
-          return `${backendBaseUrl}/${imagePath}`;
-        };
+        const options = product.variants?.map((variant: ProductVariant) => ({
+          id: variant.id,
+          title: variant.name,
+          newPrice: variant.final_price,
+          oldPrice: variant.price,
+          weight: formatWeight(variant.weight_grams),
+          sku: variant.sku,
+          image: getImageUrlFromObject(variant?.images?.[0] || variant?.product_images?.[0]),
+          imageTwo: getImageUrlFromObject(variant?.images?.[1] || variant?.product_images?.[1]),
+        }));
 
         return {
           id: product.id,
-          title: product.name,
           slug: product.slug,
-          image: getImageUrl(firstImage),
-          image2: getImageUrl(secondImage),
+          variant_id: firstVariant.id,
+          title: product.name,
           newPrice: price,
-          oldPrice: oldPrice,
-          category: product.category_name || 'Uncategorized',
+          oldPrice: oldPrice || price,
+          sale: firstVariant.on_sale ? "Sale" : "",
+          image: getImageUrlFromObject(firstImage),
+          imageTwo: getImageUrlFromObject(secondImage),
+          category: categoryName,
+          status: firstVariant.is_active ? "Available" : "Out of Stock",
+          rating: 5,
+          weight,
+          sku: firstVariant.sku || "",
+          quantity: 1,
+          date: product.created,
+          location: "Bangladesh",
+          brand: categoryName,
+          options,
         };
       });
-  }, [products, cart]);
+  }, [relatedProducts]);
 
   return (
     <>
@@ -306,6 +284,9 @@ const Cart = ({
                                 </th>
                                 <th scope="col" style={{ padding: "20px 15px", fontWeight: "600", color: "#333", borderBottom: "2px solid #dee2e6", textAlign: "center", fontSize: "16px" }}>
                                   Price
+                                </th>
+                                <th scope="col" style={{ padding: "20px 15px", fontWeight: "600", color: "#333", borderBottom: "2px solid #dee2e6", textAlign: "center", fontSize: "16px" }}>
+                                  Weight
                                 </th>
                                 <th scope="col" style={{ padding: "20px 15px", fontWeight: "600", color: "#333", borderBottom: "2px solid #dee2e6", textAlign: "center", fontSize: "16px" }}>
                                   Quantity
@@ -374,6 +355,15 @@ const Cart = ({
                                   >
                                     <span className="amount" style={{ fontWeight: "500", color: "#333", fontSize: "15px" }}>
                                       {item.newPrice.toFixed(2)} BDT
+                                    </span>
+                                  </td>
+                                  <td
+                                    data-label="Weight"
+                                    className="gi-cart-pro-weight"
+                                    style={{ padding: "20px 15px", textAlign: "center", verticalAlign: "middle" }}
+                                  >
+                                    <span style={{ fontWeight: "500", color: "#333", fontSize: "15px" }}>
+                                      {item.weight}
                                     </span>
                                   </td>
                                   <td
@@ -570,8 +560,8 @@ const Cart = ({
                       <div style={{ textAlign: "center", padding: "40px", width: "100%" }}>
                         <Spinner />
                       </div>
-                    ) : relatedProducts.length > 0 ? (
-                      relatedProducts.map((item: any, index: number) => (
+                    ) : transformedRelatedProducts.length > 0 ? (
+                      transformedRelatedProducts.map((item: any, index: number) => (
                         <SwiperSlide key={item.id || index}>
                           <ItemCard data={item} />
                         </SwiperSlide>

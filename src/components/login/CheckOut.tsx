@@ -127,10 +127,12 @@ const CheckOut = ({
     const checkboxRef = useRef<HTMLInputElement>(null);
     const userExplicitlyChoseNew = useRef(false);
 
-    // Fetch cart on mount
+    // Fetch cart on mount only if not already loading and cart doesn't exist
     useEffect(() => {
+        if (!cartLoading && !cart) {
         dispatch(getCart());
-    }, [dispatch]);
+        }
+    }, [dispatch, cartLoading, cart]);
 
     // Transform backend cart items to component format
     const cartItems = React.useMemo(() => {
@@ -288,7 +290,6 @@ const CheckOut = ({
   };
 
   const handleBillingChange = (event: any) => {
-    console.log(event.target.value);
     const newMethod = event.target.value;
     setBillingMethod(newMethod);
     
@@ -345,11 +346,26 @@ const CheckOut = ({
       return;
     }
 
+    // Validate phone number
+    const phoneError = validatePhoneNumber(formData.phone);
+    if (phoneError) {
+      setErrors((prevErrors) => ({
+        ...prevErrors,
+        phone: phoneError,
+      }));
+      setValidated(true);
+      showErrorToast(phoneError);
+      return;
+    }
+
     // Prepare address data according to backend model
+    // Clean phone number (remove non-digit characters)
+    const cleanedPhone = formData.phone.replace(/\D/g, "");
+    
     const addressData: Omit<BackendAddress, "id" | "user" | "created" | "last_modified" | "country_name"> = {
       name: formData.name.trim(),
       email: formData.email?.trim() || "",
-      phone: formData.phone.trim(),
+      phone: cleanedPhone,
       full_address: formData.full_address.trim(),
       country: formData.country,
       district: formData.district.trim(),
@@ -419,6 +435,33 @@ const CheckOut = ({
     }
   };
 
+  // Phone number validator for Bangladesh (minimum 11 digits)
+  const validatePhoneNumber = (phone: string): string | null => {
+    if (!phone || phone.trim() === "") {
+      return "Phone number is required";
+    }
+    
+    // Remove spaces, dashes, and other non-digit characters
+    const digitsOnly = phone.replace(/\D/g, "");
+    
+    // Check minimum 11 digits
+    if (digitsOnly.length < 11) {
+      return "Phone number must have at least 11 digits";
+    }
+    
+    // Check if it starts with 01 (Bangladesh mobile number format)
+    if (!digitsOnly.startsWith("01")) {
+      return "Phone number must start with 01";
+    }
+    
+    // Check maximum length (Bangladesh numbers are typically 11 digits)
+    if (digitsOnly.length > 11) {
+      return "Phone number cannot exceed 11 digits";
+    }
+    
+    return null; // Valid
+  };
+
   const handleInputChange = (e: any) => {
     const { name, value } = e.target;
 
@@ -426,6 +469,23 @@ const CheckOut = ({
       ...formData,
       [name]: value,
     });
+
+    // Validate phone number in real-time
+    if (name === "phone") {
+      const phoneError = validatePhoneNumber(value);
+      setErrors((prevErrors) => ({
+        ...prevErrors,
+        phone: phoneError || undefined,
+      }));
+    } else {
+      // Clear phone error if user is editing other fields
+      if (errors.phone && name !== "phone") {
+        setErrors((prevErrors) => ({
+          ...prevErrors,
+          phone: undefined,
+        }));
+      }
+    }
   };
 
   useEffect(() => {
@@ -544,6 +604,7 @@ const CheckOut = ({
         payment_method?: string;
         shipping_fee?: number;
         notes?: string;
+        
       } = {};
 
       // Determine address strategy
@@ -561,10 +622,26 @@ const CheckOut = ({
             return;
           }
 
+          // Validate phone number
+          const phoneError = validatePhoneNumber(formData.phone);
+          if (phoneError) {
+            setErrors((prevErrors) => ({
+              ...prevErrors,
+              phone: phoneError,
+            }));
+            setCheckoutLoading(false);
+            setValidated(true);
+            showErrorToast(phoneError);
+            return;
+          }
+
+          // Clean phone number (remove non-digit characters)
+          const cleanedPhone = formData.phone.replace(/\D/g, "");
+          
           checkoutPayload.address = {
             name: formData.name.trim(),
             email: formData.email?.trim() || "",
-            phone: formData.phone.trim(),
+            phone: cleanedPhone,
             full_address: formData.full_address.trim(),
             country: formData.country,
             district: formData.district.trim(),
@@ -581,10 +658,26 @@ const CheckOut = ({
           return;
         }
 
+        // Validate phone number
+        const phoneError = validatePhoneNumber(formData.phone);
+        if (phoneError) {
+          setErrors((prevErrors) => ({
+            ...prevErrors,
+            phone: phoneError,
+          }));
+          setCheckoutLoading(false);
+          setValidated(true);
+          showErrorToast(phoneError);
+          return;
+        }
+
+        // Clean phone number (remove non-digit characters)
+        const cleanedPhone = formData.phone.replace(/\D/g, "");
+        
         checkoutPayload.address = {
           name: formData.name.trim(),
           email: formData.email?.trim() || "",
-          phone: formData.phone.trim(),
+          phone: cleanedPhone,
           full_address: formData.full_address.trim(),
           country: formData.country,
           district: formData.district.trim(),
@@ -660,10 +753,8 @@ const CheckOut = ({
 
   const handleLogin = async (e: any) => {
     e.preventDefault();
-    console.log(email, password);
     const form = e.currentTarget;
-    console.log(form);
-    console.log(form.checkValidity());
+
     if (form.checkValidity() === true) {
 
       e.stopPropagation();
@@ -679,11 +770,9 @@ const CheckOut = ({
     }
 
     try {
-      console.log("loginUser");
       // Dispatch login action
       const result = await dispatch(loginUser({ email, password })).unwrap();
 
-      console.log(result);
       // If login successful, fetch current user data
       if (result) {
         await dispatch(getCurrentUser()).unwrap();
@@ -886,13 +975,13 @@ const CheckOut = ({
                                     💡 Want to save your addresses for faster checkout?
                                   </strong>{" "}
                                   <a
-                                    href="#"
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      setCheckOutMethod("login");
-                                      setLoginVisible(true);
-                                      setBillingVisible(false);
-                                    }}
+                                    href={`/login?redirect=${encodeURIComponent("/checkout")}`}
+                                    // onClick={(e) => {
+                                    //   e.preventDefault();
+                                    //   setCheckOutMethod("login");
+                                    //   setLoginVisible(true);
+                                    //   setBillingVisible(false);
+                                    // }}
                                     style={{
                                       color: "#5caf90",
                                       textDecoration: "underline",
@@ -1016,13 +1105,15 @@ const CheckOut = ({
                                       <Form.Control
                                         type="tel"
                                         name="phone"
-                                        placeholder="Enter your phone number"
+                                        placeholder="01XXXXXXXXX (11 digits)"
                                         required
                                         value={formData.phone}
                                         onChange={handleInputChange}
+                                        isInvalid={!!errors.phone || (validated && !formData.phone)}
+                                        maxLength={11}
                                       />
                                       <Form.Control.Feedback type="invalid">
-                                        Please Enter Phone Number.
+                                        {errors.phone || "Please Enter Phone Number."}
                                       </Form.Control.Feedback>
                                     </Form.Group>
                                   </span>

@@ -1,11 +1,36 @@
 import { useEffect, useState, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState, AppDispatch } from "../../store";
-import { getCart, removeFromCart, updateCartItem, CartItem as BackendCartItem } from "../../store/reducers/orderSlice";
+import { getCart, removeFromCart, updateCartItem, CartItem as BackendCartItem, optimisticUpdateCartItem, rollbackCartItemUpdate } from "../../store/reducers/orderSlice";
 import Link from "next/link";
 import QuantitySelector from "../quantity-selector/QuantitySelector";
 import Spinner from "../button/Spinner";
 import { API_BASE_URL } from "../../utils/api";
+
+// Helper function to get backend base URL (without /api)
+const getBackendBaseUrl = () => {
+  const apiUrl = API_BASE_URL || "http://localhost:8000/api";
+  // Remove /api from the end if present
+  return apiUrl.replace(/\/api$/, "");
+};
+
+// Helper function to construct full image URL
+const getImageUrl = (imagePath: string | null | undefined): string => {
+  if (!imagePath) return "/assets/img/common/placeholder.png";
+  
+  // If already a full URL (starts with http:// or https://), return as is
+  if (imagePath.startsWith("http://") || imagePath.startsWith("https://")) {
+    return imagePath;
+  }
+  
+  // If it's a relative path starting with /, prepend backend base URL
+  if (imagePath.startsWith("/")) {
+    return `${getBackendBaseUrl()}${imagePath}`;
+  }
+  
+  // Otherwise, assume it's a relative path and prepend backend base URL with /
+  return `${getBackendBaseUrl()}/${imagePath}`;
+};
 
 const SidebarCart = ({ closeCart, isCartOpen }: any) => {
   const dispatch = useDispatch<AppDispatch>();
@@ -14,37 +39,12 @@ const SidebarCart = ({ closeCart, isCartOpen }: any) => {
   const [subTotal, setSubTotal] = useState(0);
   const [itemOrder, setItemOrder] = useState<number[]>([]); // Store the order of item IDs
 
-  // Helper function to get backend base URL (without /api)
-  const getBackendBaseUrl = () => {
-    const apiUrl = API_BASE_URL || "http://localhost:8000/api";
-    // Remove /api from the end if present
-    return apiUrl.replace(/\/api$/, "");
-  };
-
-  // Helper function to construct full image URL
-  const getImageUrl = (imagePath: string | null | undefined): string => {
-    if (!imagePath) return "/assets/img/common/placeholder.png";
-    
-    // If already a full URL (starts with http:// or https://), return as is
-    if (imagePath.startsWith("http://") || imagePath.startsWith("https://")) {
-      return imagePath;
-    }
-    
-    // If it's a relative path starting with /, prepend backend base URL
-    if (imagePath.startsWith("/")) {
-      return `${getBackendBaseUrl()}${imagePath}`;
-    }
-    
-    // Otherwise, assume it's a relative path and prepend backend base URL with /
-    return `${getBackendBaseUrl()}/${imagePath}`;
-  };
-
-  // Fetch cart when sidebar opens
+  // Fetch cart when sidebar opens only if not already loading
   useEffect(() => {
-    if (isCartOpen) {
+    if (isCartOpen && !cartLoading && !cart) {
       dispatch(getCart());
     }
-  }, [isCartOpen, dispatch]);
+  }, [isCartOpen, dispatch, cartLoading, cart]);
 
   // Store the initial order of items when cart is first loaded
   useEffect(() => {
@@ -166,11 +166,18 @@ const SidebarCart = ({ closeCart, isCartOpen }: any) => {
       return;
     }
 
+    // Optimistic update: Update UI immediately
+    dispatch(optimisticUpdateCartItem({ id: itemId, quantity: newQuantity }));
+
     try {
-      // updateCartItem already returns the full cart, so no need to call getCart again
+      // Send request to backend (for persistence)
+      // Cart is already updated with frontend calculations via optimistic update
       await dispatch(updateCartItem({ id: itemId, quantity: newQuantity })).unwrap();
+      // Backend response is ignored - we keep frontend-calculated values
     } catch (error) {
+      // Rollback optimistic update if backend request fails
       console.error("Failed to update cart item quantity:", error);
+      dispatch(rollbackCartItemUpdate({ id: itemId }));
     }
   };
 

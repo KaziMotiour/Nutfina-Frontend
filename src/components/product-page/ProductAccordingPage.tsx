@@ -92,9 +92,9 @@ const ProductPage = ({
         className={`gi-pro-rightside gi-common-rightside ${order}`}
       >
         {/* <!-- Single product content Start --> */}
-        <div className="single-pro-block">
+        {/* <div className="single-pro-block">
           <SingleProductContent />
-        </div>
+        </div> */}
         {/* <!--Single product content End -->
                     <!-- Add More and get discount content Start --> */}
         <div className="single-add-more m-tb-40">

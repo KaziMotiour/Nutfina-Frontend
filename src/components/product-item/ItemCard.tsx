@@ -43,9 +43,8 @@
     const cart = useSelector((state: RootState) => state.order.cart);
     const cartItems = cart?.items || [];
 
-    // useEffect(() => {
-    //   console.log('data', data);
-    // }, [data]);
+
+  
     // Check if item is in cart (by variant_id)
     const isItemInCart = (variantId: number) => {
       return cartItems.some((item: any) => item.variant === variantId || item.variant_detail?.id === variantId);
@@ -104,6 +103,29 @@
           .add-to-cart-btn:hover {
             background-color:rgb(70, 145, 112) !important;
             transition: background-color 0.3s ease;
+          }
+          .item-price-link {
+            display: inline-block;
+            width: 100%;
+          }
+          .item-price-wrap {
+            display: inline-flex;
+            align-items: baseline;
+            gap: 8px;
+            flex-wrap: nowrap;
+            line-height: 1.2;
+          }
+          .item-price-wrap .new-price,
+          .item-price-wrap .old-price {
+            white-space: nowrap;
+          }
+          @media (max-width: 575.98px) {
+            .item-price-wrap {
+              display: flex;
+              flex-direction: column;
+              align-items: flex-start;
+              gap: 4px;
+            }
           }
         `}</style>
         <div className="gi-product-content">
@@ -215,18 +237,18 @@
                 </h5>
                 <div className="gi-pro-rat-price">
                   <span className="qty" style={{ fontSize: '14px' }}>
-                      {data.weight}
-                      </span>
+                      <Link href={`/product-details/${data.slug}`} style={{ color: '#000000' }}>{data.weight}</Link>
+                    </span>
                   <span className="gi-pro-rating">
                     {/* <StarRating rating={data.rating} /> */}
                   </span>
                   <span className="gi-price">
-                      <div className="row">
-                          <div className="col-12 mb-2">
-                              <span className="new-price">{data.newPrice}.00 BDT</span>
-                              {data.sale &&<span className="old-price">{data.oldPrice}.00 BDT</span>}
-                          </div>
+                    <Link href={`/product-details/${data.slug}`} className="item-price-link">
+                      <div className="item-price-wrap mb-2">
+                        <span className="new-price">{data.newPrice}.00 BDT</span>
+                        {data.sale && <span className="old-price">{data.oldPrice}.00 BDT</span>}
                       </div>
+                    </Link>
                   </span>
                 </div>
               {/* </Link> */}

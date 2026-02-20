@@ -99,7 +99,6 @@ export const getBlogs = createAsyncThunk(
   }) => {
     try {
       const queryParams = new URLSearchParams();
-      console.log('calling content api');
       
       if (params?.search) queryParams.append("search", params.search);
       if (params?.page) queryParams.append("page", params.page.toString());
@@ -127,14 +126,10 @@ export const getBlogBySlug = createAsyncThunk(
       }
       
       const cleanSlug = slug.trim();
-      console.log('API Call - Fetching blog with slug:', cleanSlug);
       const url = `/blogs/posts/${encodeURIComponent(cleanSlug)}/`;
-      console.log('API URL:', url);
       const response = await apiCall(url, { method: "GET" });
-      console.log('API Response:', response);
       return response;
     } catch (error: any) {
-      console.error('API Error:', error);
       throw new Error(error.message || "Failed to fetch blog");
     }
   }

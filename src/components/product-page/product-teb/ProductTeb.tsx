@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 import { Fade } from "react-awesome-reveal";
 import RatingComponent from "@/components/stars/RatingCompoents";
@@ -59,14 +59,8 @@ const ProductTeb = () => {
     }
   }, [login, user]);
 
-  // Fetch reviews when product changes
-  useEffect(() => {
-    if (currentProduct?.id) {
-      fetchReviews();
-    }
-  }, [currentProduct?.id]);
-
-  const fetchReviews = async () => {
+  // Fetch reviews function - memoized to prevent unnecessary re-renders
+  const fetchReviews = useCallback(async () => {
     if (!currentProduct?.id) return;
     
     setLoading(true);
@@ -79,7 +73,14 @@ const ProductTeb = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentProduct?.id]);
+
+  // Fetch reviews when product changes
+  useEffect(() => {
+    if (currentProduct?.id) {
+      fetchReviews();
+    }
+  }, [currentProduct?.id, fetchReviews]);
 
   const handleProductClick = (index: number) => {
     setSelectedIndex(index);
@@ -235,8 +236,8 @@ const ProductTeb = () => {
                 }`}
               >
                 <div className="gi-single-pro-tab-desc">
-                <p dangerouslySetInnerHTML={{ __html: currentProduct?.description || "" }}></p>
-                
+                  {currentProduct?.description ? <p dangerouslySetInnerHTML={{ __html: currentProduct?.description }}></p> : <p>No description available.</p>}
+                  
                 </div>
               </Fade>
             </TabPanel>

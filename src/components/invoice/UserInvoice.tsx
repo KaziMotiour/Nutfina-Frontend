@@ -23,6 +23,10 @@ const UserInvoice = ({ orderId, orderNumber }: UserInvoiceProps) => {
   const lookupValue = orderNumber || orderId;
 
   useEffect(() => {
+    console.log(order);
+  }, [order]);
+
+  useEffect(() => {
     if (lookupValue) {
       // Pass as-is (string for order_number like "ORD-20250101-00001", number for ID)
       // getOrder thunk will detect if it's a number or string and use the appropriate endpoint
@@ -51,7 +55,21 @@ const UserInvoice = ({ orderId, orderNumber }: UserInvoiceProps) => {
     return num.toFixed(2);
   };
 
+  const formatWeight = (weightGrams: number | null | undefined): string => {
+    if (!weightGrams) return "N/A";
+    const weight = typeof weightGrams === 'string' ? parseFloat(weightGrams) : weightGrams;
+    return weight < 1000 
+      ? `${weight}g` 
+      : `${(weight / 1000).toFixed(1)}kg`;
+  };
+
+  const getItemWeight = (item: OrderItem): string => {
+    const weightGrams = item.variant_detail?.weight_grams;
+    return formatWeight(weightGrams);
+  };
+
   const getItemImage = (item: OrderItem) => {
+    console.log(item);
     // Try variant images first
     if (item.variant_detail?.images && Array.isArray(item.variant_detail.images) && item.variant_detail.images.length > 0) {
       const activeImage = item.variant_detail.images.find((img: any) => img?.is_active !== false);
@@ -180,13 +198,13 @@ const UserInvoice = ({ orderId, orderNumber }: UserInvoiceProps) => {
         }
         
         .invoice-mobile-table th:nth-child(3),
-        .invoice-mobile-table th:nth-child(4),
-        .invoice-mobile-table th:nth-child(5) {
-          text-align: right;
+        .invoice-mobile-table th:nth-child(4) {
+          text-align: center;
         }
         
-        .invoice-mobile-table th:nth-child(3) {
-          text-align: center;
+        .invoice-mobile-table th:nth-child(5),
+        .invoice-mobile-table th:nth-child(6) {
+          text-align: right;
         }
         
         .invoice-mobile-table td {
@@ -503,10 +521,11 @@ const UserInvoice = ({ orderId, orderNumber }: UserInvoiceProps) => {
                         <table className="invoice-mobile-table">
                           <thead>
                             <tr>
-                              <th style={{ width: "40%" }}>Product</th>
-                              <th style={{ width: "15%", textAlign: "center" }}>Qty</th>
-                              <th style={{ width: "22%", textAlign: "right" }}>Price</th>
-                              <th style={{ width: "23%", textAlign: "right" }}>Total</th>
+                              <th style={{ width: "35%" }}>Product</th>
+                              <th style={{ width: "12%", textAlign: "center" }}>Weight</th>
+                              <th style={{ width: "13%", textAlign: "center" }}>Qty</th>
+                              <th style={{ width: "20%", textAlign: "right" }}>Price</th>
+                              <th style={{ width: "20%", textAlign: "right" }}>Total</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -516,7 +535,7 @@ const UserInvoice = ({ orderId, orderNumber }: UserInvoiceProps) => {
                                   <div className="invoice-mobile-product">
                                     <img
                                       src={getItemImage(item)}
-                                      alt={item.product_name || "Product"}
+                                      alt={item.variant_detail?.name || "Product"}
                                       className="invoice-mobile-product-img"
                                       onError={(e) => {
                                         (e.target as HTMLImageElement).src = "/assets/img/common/placeholder.png";
@@ -524,13 +543,19 @@ const UserInvoice = ({ orderId, orderNumber }: UserInvoiceProps) => {
                                     />
                                     <div className="invoice-mobile-product-info">
                                       <div className="invoice-mobile-product-name">
-                                        {item.product_name || "N/A"}
-                                      </div>
-                                      <div className="invoice-mobile-product-id">
-                                        ID: {item.variant || item.id}
+                                        {item.variant_detail?.name || "N/A"}
                                       </div>
                                     </div>
                                   </div>
+                                </td>
+                                <td style={{ textAlign: "center" }}>
+                                  <span style={{ 
+                                    fontSize: "11px",
+                                    color: "#6b7280",
+                                    fontWeight: "500"
+                                  }}>
+                                    {getItemWeight(item)}
+                                  </span>
                                 </td>
                                 <td style={{ textAlign: "center" }}>
                                   <span className="invoice-mobile-qty">{item.quantity}</span>
@@ -555,8 +580,9 @@ const UserInvoice = ({ orderId, orderNumber }: UserInvoiceProps) => {
                         <thead>
                           <tr>
                             <th scope="col" style={{ width: "5%", minWidth: "30px" }}>#</th>
-                            <th scope="col" style={{ width: "50%", minWidth: "200px" }}>Product</th>
-                            <th scope="col" style={{ width: "15%", minWidth: "60px", textAlign: "center" }}>Qty</th>
+                            <th scope="col" style={{ width: "40%", minWidth: "200px" }}>Product</th>
+                            <th scope="col" style={{ width: "12%", minWidth: "60px", textAlign: "center" }}>Weight</th>
+                            <th scope="col" style={{ width: "13%", minWidth: "60px", textAlign: "center" }}>Qty</th>
                             <th scope="col" style={{ width: "15%", minWidth: "80px", textAlign: "right" }}>Price</th>
                             <th scope="col" style={{ width: "15%", minWidth: "80px", textAlign: "right" }}>Amount</th>
                           </tr>
@@ -570,7 +596,7 @@ const UserInvoice = ({ orderId, orderNumber }: UserInvoiceProps) => {
                                   <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                                     <img
                                       src={getItemImage(item)}
-                                      alt={item.product_name || "Product"}
+                                      alt={item.variant_detail?.name || "Product"}
                                       className="invoice-product-image"
                                       style={{
                                         width: "50px",
@@ -586,13 +612,22 @@ const UserInvoice = ({ orderId, orderNumber }: UserInvoiceProps) => {
                                     />
                                     <div>
                                       <div style={{ fontWeight: "500", color: "#1f2937", fontSize: "14px" }}>
-                                        {item.product_name || "N/A"}
+                                        {item.variant_detail?.name || "N/A"}
                                       </div>
-                                      <div style={{ fontSize: "12px", color: "#9ca3af", marginTop: "2px" }}>
+                                      {/* <div style={{ fontSize: "12px", color: "#9ca3af", marginTop: "2px" }}>
                                         ID: {item.variant || item.id}
-                                      </div>
+                                      </div> */}
                                     </div>
                                   </div>
+                                </td>
+                                <td style={{ textAlign: "center", padding: "8px 6px" }}>
+                                  <span style={{ 
+                                    fontSize: "13px",
+                                    color: "#6b7280",
+                                    fontWeight: "500"
+                                  }}>
+                                    {getItemWeight(item)}
+                                  </span>
                                 </td>
                                 <td style={{ textAlign: "center", padding: "8px 6px" }}>
                                   <span style={{ 
@@ -616,7 +651,7 @@ const UserInvoice = ({ orderId, orderNumber }: UserInvoiceProps) => {
                             ))
                           ) : (
                             <tr>
-                              <td colSpan={5} style={{ textAlign: "center", padding: "30px", color: "#6b7280" }}>
+                              <td colSpan={6} style={{ textAlign: "center", padding: "30px", color: "#6b7280" }}>
                                 No items found
                               </td>
                             </tr>
@@ -624,7 +659,7 @@ const UserInvoice = ({ orderId, orderNumber }: UserInvoiceProps) => {
                         </tbody>
                         <tfoot>
                           <tr>
-                            <td className="border-none" colSpan={3}>
+                            <td className="border-none" colSpan={4}>
                               <span></span>
                             </td>
                             <td className="border-color" colSpan={1}>
@@ -638,7 +673,7 @@ const UserInvoice = ({ orderId, orderNumber }: UserInvoiceProps) => {
                           </tr>
                           {discount > 0 && (
                             <tr>
-                              <td className="border-none" colSpan={3}>
+                              <td className="border-none" colSpan={4}>
                                 <span></span>
                               </td>
                               <td className="border-color" colSpan={1}>
@@ -658,7 +693,7 @@ const UserInvoice = ({ orderId, orderNumber }: UserInvoiceProps) => {
                           )}
                           {shippingFee > 0 && (
                             <tr>
-                              <td className="border-none" colSpan={3}>
+                              <td className="border-none" colSpan={4}>
                                 <span></span>
                               </td>
                               <td className="border-color" colSpan={1}>
@@ -672,7 +707,7 @@ const UserInvoice = ({ orderId, orderNumber }: UserInvoiceProps) => {
                             </tr>
                           )}
                           <tr style={{ backgroundColor: "#f9fafb" }} className="invoice-total-row">
-                            <td className="border-none m-m15" colSpan={3}>
+                            <td className="border-none m-m15" colSpan={4}>
                               <div style={{ padding: "10px 0", fontSize: "13px", color: "#6b7280" }}>
                                 {order.notes || "Thank you for your order!"}
                               </div>

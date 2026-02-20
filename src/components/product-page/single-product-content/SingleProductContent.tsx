@@ -1,14 +1,13 @@
+'use client'
 import React, { useEffect, useRef, useState, useMemo } from "react";
 import { Col, Row } from "react-bootstrap";
 import Slider from "react-slick";
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
-import useSWR from "swr";
-import fetcher from "../../fetcher-api/Fetcher";
+
 import QuantitySelector from "../../quantity-selector/QuantitySelector";
 import Spinner from "@/components/button/Spinner";
 import ZoomImage from "@/components/zoom-image/ZoomImage";
-import StarRating from "../../stars/StarRating";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "@/store";
 import { addToCart } from "@/store/reducers/orderSlice";
@@ -64,22 +63,7 @@ const SingleProductContent = ({
         slider1.current.slickGoTo(index);
         }
     };
-    const { data:productPhotoData, error:productPhotoError } = useSWR("/api/productphoto", fetcher, {
-        onSuccess,
-        onError,
-    });
 
-        const getData = () => {
-
-        if (hasPaginate) return productPhotoData.data;
-        else return productPhotoData;
-        };
-
-        useEffect(() => {
-        if (product) {
-            console.log(product);
-        }
-        }, [product]);
 
     // Transform product data for display
     const productData = useMemo(() => {
@@ -117,7 +101,7 @@ const SingleProductContent = ({
         : [{ image: "/assets/img/common/placeholder.png" }];
 
         return {
-        id: firstVariant?.id || product.id,
+        id: product.variants[0]?.id,
         productId: product.id,
         title: product.name,
         excerpt: product.excerpt || '',
@@ -134,19 +118,13 @@ const SingleProductContent = ({
 
     // Set default variant when product loads
     useEffect(() => {
-        if (productData && productData.variants.length > 0 && !selectedVariant) {
-        setSelectedVariant(productData.variants[0]);
+        if (productData && productData.variants.length > 0) {
+            setSelectedVariant(productData.variants[0]);
+        } else if (!productData) {
+            setSelectedVariant(null);
         }
     }, [productData, selectedVariant]);
 
-    // Fallback to API if no product prop
-    const { data, error } = useSWR(!product ? "/api/productphoto" : null, fetcher, {
-        onSuccess,
-        onError,
-    });
-
-    // Use product data if available, otherwise fallback to API data
-    const displayData = productData || (data ? (hasPaginate ? data.data : data) : null);
 
     // Check if item is in cart (by variant_id)
     const isItemInCart = (variantId: number | null) => {
@@ -161,19 +139,21 @@ const SingleProductContent = ({
         return cartItem ? cartItem.quantity : 0;
     };
 
-    if (!product && error) return <div>Failed to load products</div>;
-    if (!product && !data)
+    // Early returns - must be after all hooks
+    if (!product) return <div>Failed to load products</div>;
+    if (!product)
         return (
         <div>
             <Spinner />
         </div>
         );
-    if (!displayData) return <div><Spinner /></div>;
+    if (!productData) return <div><Spinner /></div>;
 
+    // Event handlers
     const handleAddToCart = async () => {
-        if (!productData) return;
+        if (!selectedVariant) return;
         
-        const variantId = selectedVariant?.id || productData.variants[0]?.id;
+        const variantId = selectedVariant.id;
         if (!variantId) {
             showErrorToast("Please select a variant");
             return;
@@ -213,29 +193,14 @@ const SingleProductContent = ({
         ? parseFloat(selectedVariant.price)
         : productData?.oldPrice || null;
     const currentSku = selectedVariant?.sku || productData?.sku || '';
-    const currentImages = useMemo(() => {
-        if (!productData) return [];
-        
-        if (selectedVariant?.images && Array.isArray(selectedVariant.images) && selectedVariant.images.length > 0) {
-        return selectedVariant.images.map((img: any) => ({
-            image: img.image || "/assets/img/common/placeholder.png",
-            alt: img.alt_text || productData.title
-        }));
-        }
-        
-        if (productData.images && Array.isArray(productData.images)) {
-        return productData.images;
-        }
-        
-        return [{ image: "/assets/img/common/placeholder.png", alt: productData.title }];
-    }, [selectedVariant, productData]);
+   
 
     return (
         <>
         <div className="single-pro-inner">
             <Row>
-            {isSliderInitialized && (
-                <Col className="single-pro-img">
+            <Col className="single-pro-img">
+            {isSliderInitialized && (  
                 <div className="single-product-scroll">
                     <Slider
                     {...slider1Settings}
@@ -270,70 +235,70 @@ const SingleProductContent = ({
                     ))}
                     </Slider>
                 </div>
-                </Col>
             )}
+            </Col>
             <Col className="single-pro-desc m-t-991">
                 <div className="single-pro-content">
-                <h5 className="gi-single-title">
-                    {productData?.title || 'Product'}
-                </h5>
-                {/* <div className="gi-single-rating-wrap">
-                    <div className="gi-single-rating">
-                    <StarRating rating={productData?.rating || 5} />
-                    </div>
-                    <span className="gi-read-review">
-                    |&nbsp;&nbsp;<a href="#gi-spt-nav-review">Ratings</a>
-                    </span>
-                </div> */}
-
-                <div className="gi-single-price-stoke">
-                    <div className="gi-single-price">
-                    <div className="final-price">
-                        {currentPrice.toFixed(2)} BDT
-                        {currentOldPrice && currentOldPrice > currentPrice && (
-                        <span className="price-des">
-                            -{Math.round(((currentOldPrice - currentPrice) / currentOldPrice) * 100)}%
-                        </span>
-                        )}
-                    </div>
-                    {currentOldPrice && currentOldPrice > currentPrice && (
-                        <div className="mrp">
-                        M.R.P. : <span>{currentOldPrice.toFixed(2)} BDT</span>
+                    <h5 className="gi-single-title">
+                        {productData?.title || 'Product'}
+                    </h5>
+                    {/* <div className="gi-single-rating-wrap">
+                        <div className="gi-single-rating">
+                        <StarRating rating={productData?.rating || 5} />
                         </div>
-                    )}
+                        <span className="gi-read-review">
+                        |&nbsp;&nbsp;<a href="#gi-spt-nav-review">Ratings</a>
+                        </span>
+                    </div> */}
+
+                    <div className="gi-single-price-stoke">
+                        <div className="gi-single-price">
+                            <div className="final-price">
+                                {currentPrice.toFixed(2)} BDT
+                                {currentOldPrice && currentOldPrice > currentPrice && (
+                                <span className="price-des">
+                                    -{Math.round(((currentOldPrice - currentPrice) / currentOldPrice) * 100)}%
+                                </span>
+                                )}
+                            </div>
+                            {currentOldPrice && currentOldPrice > currentPrice && (
+                                <div className="mrp">
+                                M.R.P. : <span>{currentOldPrice.toFixed(2)} BDT</span>
+                                </div>
+                            )}
+                            </div>
+                        <div className="gi-single-stoke">
+                            <span className="gi-single-sku">SKU#: {currentSku}</span>
+                            <span className="gi-single-ps-title">{productData?.status || 'OUT OF STOCK'}</span>
+                        </div>
                     </div>
-                    <div className="gi-single-stoke">
-                        <span className="gi-single-sku">SKU#: {currentSku}</span>
-                        <span className="gi-single-ps-title">{productData?.status || 'OUT OF STOCK'}</span>
-                    </div>
-                </div>
                 <div className="gi-single-desc">
                     <div dangerouslySetInnerHTML={{ __html: productData?.excerpt || "No description available." }}></div>
                 </div>
-
+                            
                 {productData?.variants && Array.isArray(productData.variants) && productData.variants.length > 0 && (
-                    <div className="gi-pro-variation">
-                    <div className="gi-pro-variation-inner gi-pro-variation-size">
-                        <span>Weight</span>
-                        <div className="gi-pro-variation-content">
-                        <ul>
-                            {productData.variants.map((variant: any, index: number) => (
-                            <li
-                                key={variant.id || index}
-                                className={selectedVariant?.id === variant.id ? "active" : ""}
-                                onClick={() => handleVariantSelect(variant)}
-                                style={{ cursor: "pointer" }}
-                            >
-                                <span>
-                                {variant.weight_grams 
-                                    ? `${(variant.weight_grams / 1000).toFixed(1)}kg`
-                                    : variant.name || variant.sku}
-                                </span>
-                            </li>
-                            ))}
-                        </ul>
+                    <div className="gi-pro-variation mt-5">
+                        <div className="gi-pro-variation-inner gi-pro-variation-size">
+                            <span>Weight</span>
+                            <div className="gi-pro-variation-content">
+                            <ul>
+                                {productData.variants.map((variant: any, index: number) => (
+                                <li
+                                    key={variant.id || index}
+                                    className={selectedVariant?.id === variant.id ? "active" : ""}
+                                    onClick={() => handleVariantSelect(variant)}
+                                    style={{ cursor: "pointer" }}
+                                >
+                                    <span>
+                                    {variant.weight_grams 
+                                        ? `${(variant.weight_grams)}g`
+                                        : variant.name || variant.sku}
+                                    </span>
+                                </li>
+                                ))}
+                            </ul>
+                            </div>
                         </div>
-                    </div>
                     </div>
                 )}
                 <div className="gi-single-qty">

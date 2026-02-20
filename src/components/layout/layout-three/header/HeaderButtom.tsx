@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import home from "../../../../utility/header/home";
 import classic from "../../../../utility/header/classic";
 import banner from "../../../../utility/header/benner";
@@ -14,7 +14,7 @@ import SidebarCart from "../../../model/SidebarCart";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "@/store";
 import { useRouter } from "next/navigation";
-import { logout, setUserData } from "@/store/reducers/registrationSlice";
+import { logout } from "@/store/reducers/userSlice";
 
 const HeaderButtom = ({ cartItems, wishlistItems }) => {
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -23,14 +23,8 @@ const HeaderButtom = ({ cartItems, wishlistItems }) => {
   const dispatch = useDispatch();
   const router = useRouter();
   const isAuthenticated = useSelector(
-    (state: RootState) => state.registration.isAuthenticated
+    (state: RootState) => state.user?.isAuthenticated ?? false
   );
-
-  useEffect(() => {
-    const userdata = localStorage.getItem("login_user") ?? "";
-    const user = userdata !== "" ? JSON.parse(userdata) : null;
-    dispatch(setUserData({ isAuthenticated: userdata !== "", user }));
-  }, [dispatch]);
 
   const openCart = () => {
     setIsCartOpen(true);
@@ -41,10 +35,8 @@ const HeaderButtom = ({ cartItems, wishlistItems }) => {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("login_user");
     dispatch(logout());
     router.push("/");
-    window.location.reload();
   };
 
   const toggleMainMenu = (menuKey: any) => {

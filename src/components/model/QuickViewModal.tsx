@@ -51,6 +51,8 @@ const QuickViewModal = ({ show, handleClose, data }) => {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   const [selectedVariantId, setSelectedVariantId] = useState<number | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Check if item is in cart (by variant_id)
   const isItemInCart = (variantId: number | null) => {
@@ -93,6 +95,33 @@ const QuickViewModal = ({ show, handleClose, data }) => {
     }
   }, [data?.options, data?.oldPrice, data?.newPrice, data?.variant_id, data?.id]);
 
+  // Auto-dismiss messages after 4 seconds
+  useEffect(() => {
+    if (successMessage) {
+      const timer = setTimeout(() => {
+        setSuccessMessage(null);
+      }, 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [successMessage]);
+
+  useEffect(() => {
+    if (errorMessage) {
+      const timer = setTimeout(() => {
+        setErrorMessage(null);
+      }, 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [errorMessage]);
+
+  // Clear messages when modal closes
+  useEffect(() => {
+    if (!show) {
+      setSuccessMessage(null);
+      setErrorMessage(null);
+    }
+  }, [show]);
+
 
 
   const handleCart = async () => {
@@ -100,7 +129,7 @@ const QuickViewModal = ({ show, handleClose, data }) => {
     const variantId = selectedVariantId;
     
     if (!variantId) {
-      showErrorToast("Product variant not found");
+      setErrorMessage("Product variant not found");
       return;
     }
 
@@ -109,18 +138,19 @@ const QuickViewModal = ({ show, handleClose, data }) => {
     const wasInCart = isItemInCart(variantId);
 
     setIsAddingToCart(true);
+    setErrorMessage(null); // Clear any previous error
     try {
       await dispatch(addToCart({ variant_id: variantId, quantity: quantity })).unwrap();
       
       // Show appropriate message based on whether item was already in cart
       if (wasInCart) {
         const newQuantity = currentQuantity + quantity;
-        showSuccessToast(`Updated! Now you have ${newQuantity} ${newQuantity > 1 ? 'items' : 'item'} in cart`);
+        setSuccessMessage(`Updated! Now you have ${newQuantity} ${newQuantity > 1 ? 'items' : 'item'} in cart`);
       } else {
-        showSuccessToast(`Product added to cart successfully! (${quantity} ${quantity > 1 ? 'items' : 'item'})`);
+        setSuccessMessage(`Product added to cart successfully! (${quantity} ${quantity > 1 ? 'items' : 'item'})`);
       }
     } catch (error: any) {
-      showErrorToast(error || "Failed to add product to cart");
+      setErrorMessage(error?.message || error || "Failed to add product to cart");
     } finally {
       setIsAddingToCart(false);
     }
@@ -140,6 +170,18 @@ const QuickViewModal = ({ show, handleClose, data }) => {
 
   return (
     <Fade>
+      <style>{`
+        @media only screen and (max-width: 575px) {
+          .quickview-modal .quickview-pro-content .gi-quickview-qty .qty-plus-minus {
+            width: 146px !important;
+            min-width: 146px !important;
+          }
+          .quickview-modal .quickview-pro-content .gi-quickview-qty .qty-plus-minus .qty-input {
+            width: 46px !important;
+            min-width: 46px !important;
+          }
+        }
+      `}</style>
       <Modal
         centered
         show={show}
@@ -159,6 +201,62 @@ const QuickViewModal = ({ show, handleClose, data }) => {
                 aria-label="Close"
                 onClick={handleClose}
             ></button>
+            {/* Success/Error Message Banner */}
+            {(successMessage || errorMessage) && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: "50%",
+                  left: "50%",
+                  transform: "translate(-50%, -50%)",
+                  zIndex: 9999,
+                  width: "90%",
+                  maxWidth: "500px",
+                  padding: "12px 20px",
+                  borderRadius: "8px",
+                  backgroundColor: successMessage ? "#d4edda" : "#f8d7da",
+                  color: successMessage ? "#155724" : "#721c24",
+                  border: `1px solid ${successMessage ? "#c3e6cb" : "#f5c6cb"}`,
+                  boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  animation: "slideDown 0.3s ease-out",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", flex: 1 }}>
+                  <i
+                    className={successMessage ? "fi-rr-check-circle" : "fi-rr-exclamation-circle"}
+                    style={{
+                      fontSize: "20px",
+                      color: successMessage ? "#28a745" : "#dc3545",
+                    }}
+                  ></i>
+                  <span style={{ fontSize: "14px", fontWeight: "500" }}>
+                    {successMessage || errorMessage}
+                  </span>
+                </div>
+                <button
+                  onClick={() => {
+                    setSuccessMessage(null);
+                    setErrorMessage(null);
+                  }}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: successMessage ? "#155724" : "#721c24",
+                    cursor: "pointer",
+                    padding: "0",
+                    marginLeft: "10px",
+                    fontSize: "18px",
+                    lineHeight: "1",
+                  }}
+                  aria-label="Close message"
+                >
+                  <i className="fi-rr-cross-small"></i>
+                </button>
+              </div>
+            )}
             <Modal.Body>
               <Row>
                 <Col md={5} sm={12} className=" mb-767">
@@ -178,13 +276,11 @@ const QuickViewModal = ({ show, handleClose, data }) => {
                       <a href="/product-left-sidebar">{data.title}</a>
                     </h5>
                     <div className="gi-quickview-rating">
-                      <StarRating rating={data.rating} />
+                      {/* <StarRating rating={data.rating} /> */}
                     </div>
 
                     <div className="gi-quickview-desc">
-                      Lorem Ipsum is simply dummy text of the printing and
-                      typesetting industry. Lorem Ipsum has been the industry`s
-                      standard dummy text ever since the 1900s,
+                      <div dangerouslySetInnerHTML={{ __html: data.excerpt }}></div>
                     </div>
                     <div style={{ marginTop: "10px", marginBottom: "15px" }}>
                       <Link 
@@ -256,7 +352,8 @@ const QuickViewModal = ({ show, handleClose, data }) => {
                           overflow: "hidden",
                           backgroundColor: "#fff",
                           boxShadow: "0 2px 4px rgba(92, 175, 144, 0.2)",
-                          width: "fit-content"
+                          width: "146px",
+                          minWidth: "146px"
                         }}
                       >
                         <QuantitySelector

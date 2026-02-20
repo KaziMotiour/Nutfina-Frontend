@@ -120,7 +120,7 @@ const ThemeSwitcher = () => {
               ))}
             </ul>
           </div>
-          <div className="gi-tools-block">
+          {/* <div className="gi-tools-block">
             <h3>Direction Switching</h3>
             <div className="gi-tools-rtl">
               <div
@@ -140,7 +140,7 @@ const ThemeSwitcher = () => {
                 <p>RTL</p>
               </div>
             </div>
-          </div>
+          </div> */}
           <div className="gi-tools-block">
             <h3>Dark Modes</h3>
             <div className="gi-tools-dark">

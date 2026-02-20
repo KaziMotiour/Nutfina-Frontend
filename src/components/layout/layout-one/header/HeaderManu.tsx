@@ -13,7 +13,7 @@ import snacks from "../../../../utility/header/snacks";
 import spice from "../../../../utility/header/spice";
 import juice from "../../../../utility/header/juice";
 import softdrink from "../../../../utility/header/softdrink";
-import { CashewRoastedNuts, NutPowder } from "../../../../utility/header/cashewroastednuts";
+import { CashewRoastedNuts, NutPowder, SaltedRoastedNuts } from "../../../../utility/header/cashewroastednuts";
 import AlmondRoastedNuts from "../../../../utility/header/almondroastednuts";
 import Link from "next/link";
 import productpage from "../../../../utility/header/productpage";
@@ -83,7 +83,7 @@ function HeaderManu() {
                             <i className="fi-rr-cupcake"></i>Roasted Nuts
                           </button>
                         </Tab>
-                        <Tab>
+                        {/* <Tab>
                           <button
                             className={`nav-link ${
                               selectedIndex == 1 ? "active" : ""
@@ -104,7 +104,7 @@ function HeaderManu() {
                           >
                             <i className="fi fi-rs-apple-whole"></i>Nut Powder
                           </button>
-                        </Tab>
+                        </Tab> */}
                       
                       </div>
                     </TabList>
@@ -120,7 +120,7 @@ function HeaderManu() {
                           aria-labelledby="v-pills-home-tab"
                         >
                           <div className="tab-list row">
-                            <div className="col">
+                            {/* <div className="col">
                               <h6 className="gi-col-title">Roasted Cashew</h6>
                               <ul className="cat-list">
                                 {CashewRoastedNuts.map((data, index) => (
@@ -129,8 +129,18 @@ function HeaderManu() {
                                   </li>
                                 ))}
                               </ul>
-                            </div>
+                            </div> */}
                             <div className="col">
+                              <h6 className="gi-col-title">Roasted Salted Nuts</h6>
+                              <ul className="cat-list">
+                                {SaltedRoastedNuts.map((data, index) => (
+                                  <li key={index}>
+                                    <Link href={data.href}>{data.name}</Link>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                            {/* <div className="col">
                               <h6 className="gi-col-title">Roasted Almond</h6>
                               <ul className="cat-list">
                                 {AlmondRoastedNuts.map((data, index) => (
@@ -139,7 +149,7 @@ function HeaderManu() {
                                   </li>
                                 ))}
                               </ul>
-                            </div>
+                            </div> */}
                           </div>
                         </TabPanel>
                       </Fade>

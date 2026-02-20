@@ -1,21 +1,22 @@
 "use client";
 import React, { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { RootState } from "@/store";
+import { RootState, AppDispatch } from "@/store";
 import { getBlogs } from "@/store/reducers/blogSlice";
 import Spinner from "@/components/button/Spinner";
 import Link from "next/link";
 
 const RecentBlog = () => {
-  const dispatch = useDispatch();
-  const { blogs, loading } = useSelector((state: RootState) => state.blog);
+  const dispatch = useDispatch<AppDispatch>();
+  const { blogs, loading, error } = useSelector((state: RootState) => state.blog);
 
   useEffect(() => {
     // Fetch recent blogs (limit to 5, ordered by published_at)
-    if(blogs.length === 0) {
-      dispatch(getBlogs({ limit: 5, ordering: "-published_at" }) as any);
+    // Only fetch if not already loading and blogs haven't been loaded
+    if (!loading && blogs.length === 0) {
+      dispatch(getBlogs({ limit: 5, ordering: "-published_at" }));
     }
-  }, [dispatch, blogs]);
+  }, [dispatch, loading, blogs.length]);
 
   // Format date
   const formatDate = (dateString: string) => {
@@ -46,14 +47,26 @@ const RecentBlog = () => {
 
   if (loading) {
     return (
-      <div>
+      <div style={{ padding: "20px", textAlign: "center" }}>
         <Spinner />
       </div>
     );
   }
 
+  if (error) {
+    return (
+      <div className="text-muted" style={{ padding: "20px", color: "#dc3545" }}>
+        Error loading blogs: {error}
+      </div>
+    );
+  }
+
   if (!blogs || blogs.length === 0) {
-    return <div className="text-muted">No recent articles found.</div>;
+    return (
+      <div className="text-muted" style={{ padding: "20px" }}>
+        No recent articles found.
+      </div>
+    );
   }
 
   return (

@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
-import { apiCall, API_BASE_URL, getAuthToken, refreshAccessToken } from "@/utils/api";
+import { apiCall, API_BASE_URL, clearCartToken, getAuthToken, refreshAccessToken } from "@/utils/api";
 
 // Types
 export interface User {
@@ -76,7 +76,6 @@ export const loginUser = createAsyncThunk(
                 method: "POST",
                 body: JSON.stringify(credentials),
             });
-            console.log("loginUser response", response);
             // Store tokens
             if (typeof window !== "undefined") {
                 localStorage.setItem("access_token", response.access);
@@ -133,6 +132,7 @@ export const updateUser = createAsyncThunk(
                     method: "PATCH",
                     headers,
                     body: data instanceof FormData ? data : JSON.stringify(data),
+                    credentials: "include", // Include cookies for session management
                 });
 
                 // If 401, try to refresh token and retry
@@ -287,6 +287,7 @@ const userSlice = createSlice({
       if (typeof window !== "undefined") {
         localStorage.removeItem("access_token");
         localStorage.removeItem("refresh_token");
+        clearCartToken();
       }
     },
     clearError: (state) => {
@@ -337,8 +338,6 @@ const userSlice = createSlice({
         state.error = null;
       })
       .addCase(getCurrentUser.fulfilled, (state, action) => {
-        console.log("getCurrentUser", action.payload);
-        
         state.loading = false;
         state.user = action.payload;
         state.isAuthenticated = true;
@@ -388,6 +387,7 @@ const userSlice = createSlice({
         if (typeof window !== "undefined") {
           localStorage.removeItem("access_token");
           localStorage.removeItem("refresh_token");
+          clearCartToken();
         }
       });
 

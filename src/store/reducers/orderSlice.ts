@@ -1,10 +1,11 @@
 import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
-import { apiCall } from "@/utils/api";
+import { apiCall, clearCartToken } from "@/utils/api";
+import { logout } from "./userSlice";
 
 // Types
 export interface CartItem {
   id: number;
-  cart: number;
+  cart: string;
   variant: number;
   quantity: number;
   unit_price: string;
@@ -13,9 +14,10 @@ export interface CartItem {
 }
 
 export interface Cart {
-  id: number;
-  user: number;
-  active: boolean;
+  id: string;
+  cart_token?: string;
+  user: number | null;
+  status: "active" | "ordered" | "abandoned";
   subtotal: string;
   item_count: number;
   items: CartItem[];
@@ -130,7 +132,7 @@ export const getCart = createAsyncThunk(
   "order/getCart",
   async (_, { rejectWithValue }) => {
     try {
-      // Works for both authenticated and guest users (session-based)
+      // Works for both authenticated and guest users (token-based guest cart)
       const response = await apiCall("/orders/cart/", {
         method: "GET",
       });
@@ -142,6 +144,17 @@ export const getCart = createAsyncThunk(
       }
       return rejectWithValue(error.message || "Failed to get cart");
     }
+  },
+  {
+    // Prevent duplicate pending requests - return false to cancel dispatch if already loading
+    condition: (_, { getState }) => {
+      const state = getState() as { order: OrderState };
+      // Cancel dispatch if already loading (prevents duplicate simultaneous requests)
+      if (state.order.loading) {
+        return false; // Cancel this dispatch
+      }
+      return true; // Allow dispatch
+    },
   }
 );
 
@@ -149,7 +162,7 @@ export const addToCart = createAsyncThunk(
   "order/addToCart",
   async (data: { variant_id: number; quantity: number }, { rejectWithValue }) => {
     try {
-      // Works for both authenticated and guest users (session-based)
+      // Works for both authenticated and guest users (token-based guest cart)
       const response = await apiCall("/orders/cart/add/", {
         method: "POST",
         body: JSON.stringify(data),
@@ -165,9 +178,7 @@ export const mergeCart = createAsyncThunk(
   "order/mergeCart",
   async (_, { rejectWithValue }) => {
     try {
-      // This will be called after login to merge guest cart with user cart
-      // The backend handles merging automatically via get_active_cart
-      // We just need to refresh the cart
+      // For token-based cart flow this keeps current behavior by refreshing cart state.
       const response = await apiCall("/orders/cart/", {
         method: "GET",
       });
@@ -269,6 +280,7 @@ export const createOrder = createAsyncThunk(
         method: "POST",
         body: JSON.stringify(data),
       });
+      clearCartToken();
       return response;
     } catch (error: any) {
       return rejectWithValue(error.message || "Failed to create order");
@@ -301,6 +313,7 @@ export const checkout = createAsyncThunk(
         method: "POST",
         body: JSON.stringify(data),
       });
+      clearCartToken();
       return response;
     } catch (error: any) {
       return rejectWithValue(error.message || "Failed to checkout");
@@ -417,8 +430,61 @@ const orderSlice = createSlice({
     setCurrentOrder: (state, action: PayloadAction<Order | null>) => {
       state.currentOrder = action.payload;
     },
+    // Optimistic update for cart item quantity
+    optimisticUpdateCartItem: (state, action: PayloadAction<{ id: number; quantity: number }>) => {
+      if (state.cart && state.cart.items) {
+        const item = state.cart.items.find((item) => item.id === action.payload.id);
+        if (item) {
+          const oldQuantity = item.quantity;
+          const unitPrice = parseFloat(item.unit_price);
+          
+          item.quantity = action.payload.quantity;
+          item.line_total = (unitPrice * action.payload.quantity).toFixed(2);
+          
+          // Update cart totals
+          const newSubtotal = state.cart.items.reduce((sum, item) => {
+            return sum + parseFloat(item.line_total);
+          }, 0);
+          state.cart.subtotal = newSubtotal.toFixed(2);
+          state.cart.item_count = state.cart.items.reduce((sum, item) => sum + item.quantity, 0);
+          
+          // Store old quantity for potential rollback
+          (item as any)._oldQuantity = oldQuantity;
+        }
+      }
+    },
+    // Rollback optimistic update if backend request fails
+    rollbackCartItemUpdate: (state, action: PayloadAction<{ id: number }>) => {
+      if (state.cart && state.cart.items) {
+        const item = state.cart.items.find((item) => item.id === action.payload.id);
+        if (item && (item as any)._oldQuantity !== undefined) {
+          const oldQuantity = (item as any)._oldQuantity;
+          const unitPrice = parseFloat(item.unit_price);
+          
+          item.quantity = oldQuantity;
+          item.line_total = (unitPrice * oldQuantity).toFixed(2);
+          
+          // Recalculate cart totals
+          const newSubtotal = state.cart.items.reduce((sum, item) => {
+            return sum + parseFloat(item.line_total);
+          }, 0);
+          state.cart.subtotal = newSubtotal.toFixed(2);
+          state.cart.item_count = state.cart.items.reduce((sum, item) => sum + item.quantity, 0);
+          
+          // Remove rollback data
+          delete (item as any)._oldQuantity;
+        }
+      }
+    },
   },
   extraReducers: (builder) => {
+    // Clear cart state on logout so guest cart can be fetched fresh again
+    builder.addCase(logout, (state) => {
+      state.cart = null;
+      state.loading = false;
+      state.error = null;
+    });
+
     // Cart
     builder
       .addCase(getCart.pending, (state) => {
@@ -449,9 +515,18 @@ const orderSlice = createSlice({
       .addCase(mergeCart.fulfilled, (state, action) => {
         state.cart = action.payload;
       })
-      .addCase(updateCartItem.fulfilled, (state, action) => {
-        // Backend returns full cart after update
-        state.cart = action.payload;
+      .addCase(updateCartItem.fulfilled, (state) => {
+        // Explicitly ignore backend response - keep frontend-calculated values
+        // The optimistic update already updated the cart with frontend calculations
+        // We do NOT update state.cart here - this is intentionally a no-op
+        // The action.payload contains the backend response, but we completely ignore it
+        // to maintain the frontend-calculated values from optimisticUpdateCartItem
+        // 
+        // This ensures that when a user changes quantity:
+        // 1. Frontend calculates and updates immediately (optimisticUpdateCartItem)
+        // 2. Backend request is sent for persistence
+        // 3. Backend response is received but ignored (this case)
+        // 4. Frontend-calculated values remain in the cart
       })
       .addCase(removeFromCart.fulfilled, (state, action) => {
         // Backend returns full cart after removal
@@ -549,6 +624,6 @@ const orderSlice = createSlice({
   },
 });
 
-export const { clearError, clearCart, setCurrentOrder } = orderSlice.actions;
+export const { clearError, clearCart, setCurrentOrder, optimisticUpdateCartItem, rollbackCartItemUpdate } = orderSlice.actions;
 export default orderSlice.reducer;
 

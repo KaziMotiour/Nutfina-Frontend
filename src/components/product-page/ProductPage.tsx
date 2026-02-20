@@ -65,12 +65,6 @@ const ProductPage = ({
     [dispatch]
   );
 
-  useEffect(() => {
-    if (currentProduct) { 
-      console.log(currentProduct);
-    }
-  }, [currentProduct]);
-
   // Show loading state if fetching product details
   if (productId && productLoading) {
     return (
