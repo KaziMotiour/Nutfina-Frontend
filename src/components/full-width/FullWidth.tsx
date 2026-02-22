@@ -194,6 +194,24 @@ const FullWidth = ({
         return img.image || img.image_url || "/assets/img/common/placeholder.png";
       };
 
+      // Map all variants to options for QuickViewModal
+      const options = product?.variants?.map((variant: any) => {
+        return {
+          id: variant.id,
+          title: variant.name,
+          newPrice: parseFloat(variant.final_price) || parseFloat(variant.price) || 0,
+          oldPrice: parseFloat(variant.price) || 0,
+          weight: variant.weight_grams 
+            ? (variant.weight_grams < 1000 
+              ? `${variant.weight_grams}g` 
+              : `${(variant.weight_grams / 1000).toFixed(1)}kg`)
+            : "N/A",
+          sku: variant.sku,
+          image: getImageUrl(variant?.images?.[0] || variant?.product_images?.[0]),
+          imageTwo: getImageUrl(variant?.images?.[1] || variant?.product_images?.[1]),
+        };
+      }) || [];
+
       return {
         id: product.id,
         variant_id: firstVariant?.id || null, // Include variant_id for cart operations
@@ -205,7 +223,11 @@ const FullWidth = ({
         oldPrice: oldPrice || price,
         image: getImageUrl(firstImage),
         imageTwo: getImageUrl(secondImage),
-        waight: firstVariant?.weight_grams ? `${firstVariant.weight_grams}g` : "",
+        waight: firstVariant?.weight_grams 
+          ? (firstVariant.weight_grams < 1000 
+            ? `${firstVariant.weight_grams}g` 
+            : `${(firstVariant.weight_grams / 1000).toFixed(1)}kg`)
+          : "",
         date: product.created || "",
         status: product.is_active ? "Available" : "Out Of Stock",
         rating: 4, // Default rating, can be added to backend if needed
@@ -216,6 +238,7 @@ const FullWidth = ({
         categorySlug: product.category_slug,
         quantity: 1,
         sale: firstVariant?.on_sale ? "Sale" : "",
+        options: options, // Include all variants as options for QuickViewModal
       };
     }).filter((item: any) => item !== null); // Remove any null items
   }, [products]);

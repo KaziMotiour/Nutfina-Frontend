@@ -230,15 +230,16 @@ const SidebarCart = ({ closeCart, isCartOpen }: any) => {
                         <span>{item.line_total.toFixed(2)} BDT</span>
                       </span>
                       <div 
-                        className="qty-plus-minus gi-qty-rtl"
+                        className="qty-plus-minus"
                         style={{
                           display: "inline-flex",
                           alignItems: "center",
-                          border: "1px solid #dee2e6",
-                          borderRadius: "5px",
-                          overflow: "hidden",
-                          backgroundColor: "#fff",
-                          width: "fit-content"
+                          justifyContent: "center",
+                          overflow: "visible",
+                          width: "auto",
+                          minWidth: "120px",
+                          height: "auto",
+                          border: "none"
                         }}
                       >
                         <QuantitySelector

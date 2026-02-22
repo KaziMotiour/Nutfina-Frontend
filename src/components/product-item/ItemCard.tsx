@@ -54,7 +54,6 @@
       // Get variant_id from data
       // data.id might be variant_id, or we need to get it from variant_detail
       const variantId = data.variant_id || data.variant_detail?.id || data.id;
-      ItemCard
       if (!variantId) {
         showErrorToast("Product variant not found");
         return;

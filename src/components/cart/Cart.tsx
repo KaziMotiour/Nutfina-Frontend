@@ -372,15 +372,18 @@ const Cart = ({
                                     style={{ padding: "20px 15px", textAlign: "center", verticalAlign: "middle" }}
                                   >
                                     <div 
-                                      className="cart-qty-plus-minus qty-plus-minus" 
+                                      className="qty-plus-minus" 
                                       style={{ 
                                         display: "inline-flex", 
                                         alignItems: "center", 
                                         justifyContent: "center",
                                         border: "1px solid #dee2e6",
                                         borderRadius: "5px",
-                                        overflow: "hidden",
-                                        backgroundColor: "#fff"
+                                        overflow: "visible",
+                                        backgroundColor: "#fff",
+                                        width: "auto",
+                                        minWidth: "120px",
+                                        height: "auto"
                                       }}
                                     >
                                       <QuantitySelector

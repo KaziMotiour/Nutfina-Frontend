@@ -292,6 +292,12 @@ export const createOrder = createAsyncThunk(
 export const checkout = createAsyncThunk(
   "order/checkout",
   async (data: {
+    mode?: "cart" | "buy-now";
+    buy_now?: {
+      product_id: number;
+      qty: number;
+      variant_id?: number;
+    };
     address_id?: number;
     address?: {
       name: string;
@@ -313,7 +319,9 @@ export const checkout = createAsyncThunk(
         method: "POST",
         body: JSON.stringify(data),
       });
-      clearCartToken();
+      if ((data.mode || "cart") !== "buy-now") {
+        clearCartToken();
+      }
       return response;
     } catch (error: any) {
       return rejectWithValue(error.message || "Failed to checkout");
@@ -573,8 +581,10 @@ const orderSlice = createSlice({
         state.loading = false;
         state.orders.unshift(action.payload);
         state.currentOrder = action.payload;
-        // Clear cart after successful checkout
+        // Buy-now should not touch cart state.
+        if ((action.meta.arg.mode || "cart") !== "buy-now") {
         state.cart = null;
+        }
       })
       .addCase(checkout.rejected, (state, action) => {
         state.loading = false;

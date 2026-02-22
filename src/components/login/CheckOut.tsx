@@ -7,12 +7,13 @@ import useSWR from "swr";
 import fetcher from "../fetcher-api/Fetcher";
 import { Col, Form, Row } from "react-bootstrap";
 import Spinner from "../button/Spinner";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { clearCart, setOrders, setSwitchOn } from "@/store/reducers/cartSlice";
 import { loginUser, getCurrentUser, getUserAddress, getDefaultAddress, createAddress, Address as BackendAddress } from "@/store/reducers/userSlice";
 import { mergeCart, getCart, CartItem as BackendCartItem, checkout } from "@/store/reducers/orderSlice";
 import { showErrorToast, showSuccessToast } from "../toast-popup/Toastify";
 import DiscountCoupon from "../discount-coupon/DiscountCoupon";
+import { apiCall } from "@/utils/api";
 
 interface Address {
   id: string;
@@ -69,6 +70,17 @@ interface City {
   iso2: string;
 }
 
+interface BuyNowSummaryItem {
+  productId: number;
+  variantId: number;
+  title: string;
+  weight_grams: number;
+  quantity: number;
+  newPrice: number;
+  line_total: number;
+  image: string;
+}
+
 const CheckOut = ({
   onSuccess = () => {},
   hasPaginate = false,
@@ -93,6 +105,7 @@ const CheckOut = ({
     }>({});
     const dispatch = useDispatch<AppDispatch>();
     const router = useRouter();
+    const searchParams = useSearchParams();
     const cart = useSelector((state: RootState) => state.order.cart);
     const cartLoading = useSelector((state: RootState) => state.order.loading);
     const orders = useSelector((state: RootState) => state.cart.orders);
@@ -124,18 +137,94 @@ const CheckOut = ({
     const [filteredCountryData, setFilteredCountryData] = useState<Country[]>([]);
     const [isTermsChecked, setIsTermsChecked] = useState(false);
     const [checkoutLoading, setCheckoutLoading] = useState(false);
+    const [buyNowLoading, setBuyNowLoading] = useState(false);
+    const [buyNowItem, setBuyNowItem] = useState<BuyNowSummaryItem | null>(null);
     const checkboxRef = useRef<HTMLInputElement>(null);
     const userExplicitlyChoseNew = useRef(false);
+    const checkoutMode = searchParams.get("mode") === "buy-now" ? "buy-now" : "cart";
+    const buyNowProductId = Number(searchParams.get("productId") || 0);
+    const buyNowQty = Math.max(1, Number(searchParams.get("qty") || 1));
+    const buyNowVariantId = Number(searchParams.get("variantId") || 0);
+    const buyNowProductName = (searchParams.get("productName") || "").trim();
 
-    // Fetch cart on mount only if not already loading and cart doesn't exist
+    // Fetch cart only in cart checkout mode.
     useEffect(() => {
-        if (!cartLoading && !cart) {
+        if (checkoutMode === "cart" && !cartLoading && !cart) {
         dispatch(getCart());
         }
-    }, [dispatch, cartLoading, cart]);
+    }, [dispatch, cartLoading, cart, checkoutMode]);
+
+    useEffect(() => {
+      const loadBuyNowItem = async () => {
+        if (checkoutMode !== "buy-now") {
+          setBuyNowItem(null);
+          return;
+        }
+
+        if (!buyNowProductId || buyNowQty <= 0) {
+          setBuyNowItem(null);
+          showErrorToast("Invalid Buy Now request.");
+          return;
+        }
+
+        setBuyNowLoading(true);
+        try {
+          let variant: any = null;
+          if (buyNowVariantId) {
+              variant = await apiCall(`/shop/variants/${buyNowVariantId}/`, { method: "GET" });
+          } else {
+              const response = await apiCall(
+                `/shop/variants/?product=${buyNowProductId}&is_active=true`,
+                { method: "GET" }
+              );
+              console.log(response);
+              const list = Array.isArray(response) ? response : response?.results || [];
+              variant = list[0] || null;
+          }
+
+          if (!variant?.id || !variant?.is_active) {
+              throw new Error("Selected product variant is unavailable.");
+          }
+          console.log(variant);
+          const variantImages = variant.images || [];
+          const productImages = variant.product_images || [];
+          const firstImage = variantImages[0] || productImages[0] || {};
+          const image = firstImage.image || firstImage.image_url || "/assets/img/common/placeholder.png";
+          const unitPrice = parseFloat(variant.final_price || variant.price || "0");
+
+          const variantName = typeof variant.name === "string" ? variant.name.trim() : "";
+          const summaryTitle = buyNowProductName
+            ? variantName
+              ? `${buyNowProductName} (${variantName})`
+              : buyNowProductName
+            : variantName || `Product #${buyNowProductId}`;
+
+          setBuyNowItem({
+            productId: buyNowProductId,
+            variantId: variant.id,
+            title: variant.name,
+            weight_grams: parseInt(variant.weight_grams),
+            quantity: buyNowQty,
+            newPrice: unitPrice,
+            line_total: unitPrice * buyNowQty,
+            image,
+          });
+        } catch (error: any) {
+          setBuyNowItem(null);
+          showErrorToast(error?.message || "Unable to load Buy Now item.");
+        } finally {
+          setBuyNowLoading(false);
+        }
+      };
+
+      loadBuyNowItem();
+    }, [checkoutMode, buyNowProductId, buyNowQty, buyNowVariantId, buyNowProductName]);
 
     // Transform backend cart items to component format
     const cartItems = React.useMemo(() => {
+        if (checkoutMode === "buy-now") {
+          return buyNowItem ? [buyNowItem] : [];
+        }
         if (!cart || !cart.items || cart.items.length === 0) return [];
 
         return cart.items.map((item: BackendCartItem) => {
@@ -165,7 +254,7 @@ const CheckOut = ({
                 line_total: parseFloat(item.line_total),
             };
         });
-    }, [cart]);
+    }, [cart, checkoutMode, buyNowItem]);
 
     const [formData, setFormData]: any = useState({
       name: "",
@@ -498,6 +587,13 @@ const CheckOut = ({
 
   // item Price - Update from backend cart
   useEffect(() => {
+    if (checkoutMode === "buy-now") {
+      const subtotal = buyNowItem ? buyNowItem.line_total : 0;
+      setSubTotal(subtotal);
+      setVat(0);
+      return;
+    }
+
     if (cart) {
       const subtotal = parseFloat(cart.subtotal || "0");
       setSubTotal(subtotal);
@@ -508,7 +604,7 @@ const CheckOut = ({
       setSubTotal(0);
       setVat(0);
     }
-  }, [cart]);
+  }, [cart, checkoutMode, buyNowItem]);
 
   const handleDiscountApplied = (couponData: {
     code: string;
@@ -578,10 +674,16 @@ const CheckOut = ({
 
   const handleCheckout = async () => {
     try {
-      // Validate cart is not empty
-      if (!cart || !cart.items || cart.items.length === 0) {
-        showErrorToast("Your cart is empty.");
-        return;
+      if (checkoutMode === "buy-now") {
+        if (!buyNowItem) {
+          showErrorToast("Buy Now item is missing.");
+          return;
+        }
+      } else {
+        if (!cart || !cart.items || cart.items.length === 0) {
+          showErrorToast("Your cart is empty.");
+          return;
+        }
       }
 
       // Set loading state to show spinner
@@ -589,6 +691,12 @@ const CheckOut = ({
 
       // Prepare checkout payload
       const checkoutPayload: {
+        mode?: "cart" | "buy-now";
+        buy_now?: {
+          product_id: number;
+          qty: number;
+          variant_id?: number;
+        };
         address_id?: number;
         address?: {
           name: string;
@@ -692,6 +800,14 @@ const CheckOut = ({
 
       checkoutPayload.payment_method = "COD"; // Cash on Delivery
       checkoutPayload.shipping_fee = 0; // Free shipping
+      checkoutPayload.mode = checkoutMode;
+      if (checkoutMode === "buy-now" && buyNowItem) {
+        checkoutPayload.buy_now = {
+          product_id: buyNowItem.productId,
+          qty: buyNowItem.quantity,
+          variant_id: buyNowItem.variantId,
+        };
+      }
 
       // Call backend checkout API
       const result = await dispatch(checkout(checkoutPayload));
@@ -699,8 +815,9 @@ const CheckOut = ({
       if (checkout.fulfilled.match(result)) {
         showSuccessToast("Order placed successfully!");
         
-        // Clear local cart state
-        dispatch(clearCart());
+        if (checkoutMode === "cart") {
+          dispatch(clearCart());
+        }
         
         // Get order data from response and navigate to invoice page
         // Prefer order_number over ID as it's more user-friendly
@@ -794,6 +911,13 @@ const CheckOut = ({
     handleInputChange(e);
   };
 
+  const checkoutRedirectUrl =
+    checkoutMode === "buy-now"
+      ? `/checkout?mode=buy-now&productId=${buyNowProductId}&qty=${buyNowQty}${
+          buyNowVariantId ? `&variantId=${buyNowVariantId}` : ""
+        }${buyNowProductName ? `&productName=${encodeURIComponent(buyNowProductName)}` : ""}`
+      : "/checkout";
+
   return (
     <>
       <Breadcrumb title={"Checkout"} />
@@ -804,7 +928,9 @@ const CheckOut = ({
       <section className="gi-checkout-section padding-tb-40">
         <h2 className="d-none">Checkout Page</h2>
         <div className="container">
-          {cartItems.length === 0 ? (
+          {buyNowLoading ? (
+            <Spinner />
+          ) : cartItems.length === 0 ? (
             <div
               style={{
                 textAlign: "center",
@@ -813,9 +939,9 @@ const CheckOut = ({
               }}
               className="gi-pro-content cart-pro-title"
             >
-              {" "}
-              Your cart is currently empty. Please add items to your cart to
-              proceed.
+              {checkoutMode === "buy-now"
+                ? "Buy Now item is unavailable. Please go back and select the product again."
+                : "Your cart is currently empty. Please add items to your cart to proceed."}
             </div>
           ) : (
             <Row>
@@ -975,7 +1101,7 @@ const CheckOut = ({
                                     💡 Want to save your addresses for faster checkout?
                                   </strong>{" "}
                                   <a
-                                    href={`/login?redirect=${encodeURIComponent("/checkout")}`}
+                                    href={`/login?redirect=${encodeURIComponent(checkoutRedirectUrl)}`}
                                     // onClick={(e) => {
                                     //   e.preventDefault();
                                     //   setCheckOutMethod("login");
@@ -1478,7 +1604,7 @@ const CheckOut = ({
                           >
                             <div style={{ flex: 1 }}>
                               <h6 style={{ margin: 0, fontSize: "14px", fontWeight: "500" }}>
-                                {item.title} ({item.quantity}x)
+                                {item.title} {item.weight_grams}g ({item.quantity}x)
                               </h6>
                             </div>
                             <div style={{ textAlign: "right" }}>

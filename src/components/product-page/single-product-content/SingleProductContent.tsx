@@ -12,6 +12,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "@/store";
 import { addToCart } from "@/store/reducers/orderSlice";
 import { showSuccessToast, showErrorToast } from "../../toast-popup/Toastify";
+import { useRouter } from "next/navigation";
 
 const SingleProductContent = ({
     product,
@@ -24,6 +25,7 @@ const SingleProductContent = ({
     const [isSliderInitialized, setIsSliderInitialized] = useState(false);
     const [isAddingToCart, setIsAddingToCart] = useState(false);
     const dispatch = useDispatch<AppDispatch>();
+    const router = useRouter();
     const cart = useSelector((state: RootState) => state.order.cart);
     const cartItems = cart?.items || [];
     const initialRef: any = null;
@@ -119,11 +121,17 @@ const SingleProductContent = ({
     // Set default variant when product loads
     useEffect(() => {
         if (productData && productData.variants.length > 0) {
-            setSelectedVariant(productData.variants[0]);
+            // Keep current selection if it still exists after data refresh.
+            const stillExists = selectedVariant?.id
+                ? productData.variants.some((variant: any) => variant.id === selectedVariant.id)
+                : false;
+            if (!stillExists) {
+                setSelectedVariant(productData.variants[0]);
+            }
         } else if (!productData) {
             setSelectedVariant(null);
         }
-    }, [productData, selectedVariant]);
+    }, [productData]);
 
 
     // Check if item is in cart (by variant_id)
@@ -183,6 +191,27 @@ const SingleProductContent = ({
 
     const handleVariantSelect = (variant: any) => {
         setSelectedVariant(variant);
+    };
+
+    const handleBuyNow = () => {
+        const resolvedProductId = product?.id;
+        if (!resolvedProductId) {
+            showErrorToast("Unable to start buy now. Product not found.");
+            return;
+        }
+        if (!selectedVariant?.id) {
+            showErrorToast("Please select a variant first.");
+            return;
+        }
+
+        const params = new URLSearchParams({
+            mode: "buy-now",
+            productId: String(resolvedProductId),
+            qty: String(Math.max(1, quantity)),
+            variantId: String(selectedVariant.id),
+            productName: String(productData?.title || product?.name || ""),
+        });
+        router.push(`/checkout?${params.toString()}`);
     };
 
     // Get current display values based on selected variant
@@ -301,39 +330,128 @@ const SingleProductContent = ({
                         </div>
                     </div>
                 )}
-                <div className="gi-single-qty">
-                    <div className="qty-plus-minus" style={{ 
-                        overflow: 'visible', 
-                        width: 'auto', 
-                        minWidth: '120px',
-                        height: '40px', 
-                        padding: '0', 
-                        display: 'flex', 
-                        alignItems: 'center',
-                        border: '1px solid #eee',
-                        borderRadius: '5px'
+                <div
+                    className="gi-single-qty"
+                    style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "flex-start",
+                        gap: "10px",
+                    }}
+                >
+                    <div style={{ 
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "10px"
                     }}>
-                        <QuantitySelector 
-                            setQuantity={setQuantity} 
-                            quantity={quantity} 
-                            id={productData?.id || product?.id} 
-                        />
+                        <label style={{ 
+                            fontSize: "15px",
+                            fontWeight: "500",
+                            color: "#333",
+                            marginBottom: "0"
+                        }}>
+                            Quantity:
+                        </label>
+                        <div className="qty-plus-minus" style={{ 
+                            overflow: 'visible', 
+                            width: 'auto', 
+                            minWidth: '120px',
+                            height: '40px', 
+                            padding: '0', 
+                            display: 'flex', 
+                            alignItems: 'center',
+                            border: '1px solid #eee',
+                            borderRadius: '5px'
+                        }}>
+                            <QuantitySelector 
+                                setQuantity={setQuantity} 
+                                quantity={quantity} 
+                                id={productData?.id || product?.id} 
+                            />
+                        </div>
                     </div>
-                    <div className="gi-single-cart">
-                        <button 
-                            className="btn btn-primary gi-btn-1"
-                            onClick={handleAddToCart}
-                            disabled={isAddingToCart}
-                            style={{ opacity: isAddingToCart ? 0.6 : 1 }}
-                            title={"Add To Cart"}
-                        >
-                            {isAddingToCart ? 'Adding...' : 'Add To Cart'}
-                        </button>
+                    <div className="gi-single-cart sticky-cta">
+                        <div className="cta-wrapper">
+                            <button 
+                                className="btn add-to-cart-btn"
+                                onClick={handleAddToCart}
+                                disabled={isAddingToCart}
+                            >
+                                {isAddingToCart ? 'Adding...' : 'Add To Cart'}
+                            </button>
+
+                            <button
+                                className="btn buy-now-btn"
+                                onClick={handleBuyNow}
+                            >
+                                Buy Now
+                            </button>
+                        </div>
                     </div>
                 </div>
                 </div>
             </Col>
             </Row>
+            <style jsx>{`
+                .sticky-cta {
+                    margin-top: 10px;
+                    padding-top: 20px;
+                }
+
+                .cta-wrapper {
+                    display: flex;
+                    gap: 12px;
+                    align-items: center;
+                }
+
+                .add-to-cart-btn {
+                    background: transparent;
+                    border: 2px solid #03492f;
+                    color: #03492f;
+                    font-weight: 600;
+                    height: 48px;
+                    min-width: 160px;
+                    transition: all 0.2s ease;
+                }
+
+                .add-to-cart-btn:hover {
+                    background: #023020;
+                    color: #fff;
+                }
+
+                .buy-now-btn {
+                    background: #03492f;
+                    border: none;
+                    color: white;
+                    font-weight: 700;
+                    height: 52px;
+                    min-width: 180px;
+                    font-size: 16px;
+                    transition: all 0.2s ease;
+                }
+
+                .buy-now-btn:hover {
+                    background: #023020;
+                }
+
+                @media (min-width: 992px) {
+                      .sticky-cta {
+                          position: sticky;
+                          bottom: 20px;
+                          background: #fff;
+                          z-index: 10;
+                          padding: 20px 0 0 0;
+                          margin-bottom: 50px;  
+                      }
+
+                }
+                  @media (max-width: 991px) {
+                      .sticky-cta {
+                          margin-bottom: 50px;
+                          margin-top: -0px;
+                      }
+                  }
+`}</style>
         </div>
         </>
     );

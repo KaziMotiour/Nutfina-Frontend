@@ -68,6 +68,7 @@ const QuickViewModal = ({ show, handleClose, data }) => {
   };
 
   useEffect(() => {
+    console.log("data", data.options);
     if (data?.options?.length > 0) {
       const mappedOptions = data.options.map((option: any) => ({
         id: option.id,
