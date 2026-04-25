@@ -430,6 +430,16 @@ const CheckOut = ({
 
     // Validate required fields
     if (!formData.name || !formData.phone || !formData.full_address || !formData.country || !formData.district) {
+      setErrors((prev) => ({
+        ...prev,
+        name: !formData.name?.trim() ? "Name is required" : undefined,
+        phone: !formData.phone?.trim() ? "Phone is required" : undefined,
+        full_address: !formData.full_address?.trim()
+          ? "Full address is required"
+          : undefined,
+        country: !formData.country ? "Country is required" : undefined,
+        district: !formData.district?.trim() ? "District is required" : undefined,
+      }));
       setValidated(true);
       showErrorToast("Please fill in all required fields");
       return;
@@ -444,6 +454,17 @@ const CheckOut = ({
       }));
       setValidated(true);
       showErrorToast(phoneError);
+      return;
+    }
+
+    const emailError = validateEmail(formData.email || "");
+    if (emailError) {
+      setErrors((prevErrors) => ({
+        ...prevErrors,
+        email: emailError,
+      }));
+      setValidated(true);
+      showErrorToast(emailError);
       return;
     }
 
@@ -500,6 +521,7 @@ const CheckOut = ({
           });
           
           setValidated(false);
+          setErrors({});
         } else {
           // Handle error from backend
           const errorMessage = result.payload as string;
@@ -521,6 +543,7 @@ const CheckOut = ({
       // For guest users, just show success message (address will be saved during checkout)
       showSuccessToast("Address information saved! You can now proceed to checkout.");
       setValidated(false);
+      setErrors({});
     }
   };
 
@@ -551,6 +574,24 @@ const CheckOut = ({
     return null; // Valid
   };
 
+  /** Empty email is allowed (optional); non-empty must look like a valid address. */
+  const validateEmail = (email: string): string | null => {
+    const trimmed = (email || "").trim();
+    if (!trimmed) {
+      return null;
+    }
+    if (trimmed.length > 254) {
+      return "Email is too long";
+    }
+    // One local-part @ domain with at least one dot in the host (e.g. user@example.com)
+    const re =
+      /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
+    if (!re.test(trimmed)) {
+      return "Please enter a valid email address";
+    }
+    return null;
+  };
+
   const handleInputChange = (e: any) => {
     const { name, value } = e.target;
 
@@ -559,21 +600,92 @@ const CheckOut = ({
       [name]: value,
     });
 
-    // Validate phone number in real-time
+    // Validate phone / email in real-time
     if (name === "phone") {
       const phoneError = validatePhoneNumber(value);
       setErrors((prevErrors) => ({
         ...prevErrors,
         phone: phoneError || undefined,
       }));
+    } else if (name === "email") {
+      const emailError = validateEmail(value);
+      setErrors((prevErrors) => ({
+        ...prevErrors,
+        email: emailError || undefined,
+      }));
+    } else if (name === "full_address") {
+      setErrors((prevErrors) => ({
+        ...prevErrors,
+        full_address: value?.trim()
+          ? undefined
+          : prevErrors.full_address,
+      }));
+    } else if (name === "district") {
+      setErrors((prevErrors) => ({
+        ...prevErrors,
+        district: value?.trim() ? undefined : prevErrors.district,
+      }));
+    } else if (name === "country") {
+      setErrors((prevErrors) => ({
+        ...prevErrors,
+        country: undefined,
+      }));
+    } else if (name === "name") {
+      setErrors((prevErrors) => ({
+        ...prevErrors,
+        name: value?.trim() ? undefined : prevErrors.name,
+      }));
     } else {
-      // Clear phone error if user is editing other fields
       if (errors.phone && name !== "phone") {
         setErrors((prevErrors) => ({
           ...prevErrors,
           phone: undefined,
         }));
       }
+      if (errors.email && name !== "email") {
+        setErrors((prevErrors) => ({
+          ...prevErrors,
+          email: undefined,
+        }));
+      }
+    }
+  };
+
+  /** Show required / format errors after the user leaves a billing field (blur). */
+  const handleRequiredAddressBlur = (
+    e: React.FocusEvent<HTMLInputElement>
+  ) => {
+    const fieldName = e.target.name;
+    const raw = e.target.value ?? "";
+
+    if (fieldName === "phone") {
+      const phoneError = validatePhoneNumber(raw);
+      setErrors((prev) => ({
+        ...prev,
+        phone: phoneError || undefined,
+      }));
+      return;
+    }
+
+    if (fieldName === "name") {
+      setErrors((prev) => ({
+        ...prev,
+        name: !raw.trim() ? "Name is required" : undefined,
+      }));
+      return;
+    }
+    if (fieldName === "full_address") {
+      setErrors((prev) => ({
+        ...prev,
+        full_address: !raw.trim() ? "Full address is required" : undefined,
+      }));
+      return;
+    }
+    if (fieldName === "district") {
+      setErrors((prev) => ({
+        ...prev,
+        district: !raw.trim() ? "District is required" : undefined,
+      }));
     }
   };
 
@@ -724,6 +836,16 @@ const CheckOut = ({
         } else {
           // New address - validate and send full address payload
           if (!formData.name || !formData.phone || !formData.full_address || !formData.country || !formData.district) {
+            setErrors((prev) => ({
+              ...prev,
+              name: !formData.name?.trim() ? "Name is required" : undefined,
+              phone: !formData.phone?.trim() ? "Phone is required" : undefined,
+              full_address: !formData.full_address?.trim()
+                ? "Full address is required"
+                : undefined,
+              country: !formData.country ? "Country is required" : undefined,
+              district: !formData.district?.trim() ? "District is required" : undefined,
+            }));
             setCheckoutLoading(false);
             showErrorToast("Please fill in all required address fields.");
             setValidated(true);
@@ -740,6 +862,18 @@ const CheckOut = ({
             setCheckoutLoading(false);
             setValidated(true);
             showErrorToast(phoneError);
+            return;
+          }
+
+          const emailErr = validateEmail(formData.email || "");
+          if (emailErr) {
+            setErrors((prevErrors) => ({
+              ...prevErrors,
+              email: emailErr,
+            }));
+            setCheckoutLoading(false);
+            setValidated(true);
+            showErrorToast(emailErr);
             return;
           }
 
@@ -760,6 +894,16 @@ const CheckOut = ({
       } else {
         // Guest user - always send full address payload
         if (!formData.name || !formData.phone || !formData.full_address || !formData.country || !formData.district) {
+          setErrors((prev) => ({
+            ...prev,
+            name: !formData.name?.trim() ? "Name is required" : undefined,
+            phone: !formData.phone?.trim() ? "Phone is required" : undefined,
+            full_address: !formData.full_address?.trim()
+              ? "Full address is required"
+              : undefined,
+            country: !formData.country ? "Country is required" : undefined,
+            district: !formData.district?.trim() ? "District is required" : undefined,
+          }));
           setCheckoutLoading(false);
           showErrorToast("Please fill in all required address fields.");
           setValidated(true);
@@ -776,6 +920,18 @@ const CheckOut = ({
           setCheckoutLoading(false);
           setValidated(true);
           showErrorToast(phoneError);
+          return;
+        }
+
+        const emailErrGuest = validateEmail(formData.email || "");
+        if (emailErrGuest) {
+          setErrors((prevErrors) => ({
+            ...prevErrors,
+            email: emailErrGuest,
+          }));
+          setCheckoutLoading(false);
+          setValidated(true);
+          showErrorToast(emailErrGuest);
           return;
         }
 
@@ -922,9 +1078,9 @@ const CheckOut = ({
     <>
       <Breadcrumb title={"Checkout"} />
       {/* Full-page spinner overlay during checkout */}
-      {checkoutLoading && (
+      {/* {checkoutLoading && (
         <Spinner />
-      )}
+      )} */}
       <section className="gi-checkout-section padding-tb-40">
         <h2 className="d-none">Checkout Page</h2>
         <div className="container">
@@ -1050,10 +1206,17 @@ const CheckOut = ({
                                                 className="gi-btn-2"
                                                 type="submit"
                                                 disabled={loginLoading}
+                                                style={{
+                                                  minHeight: 48,
+                                                  display: "inline-flex",
+                                                  alignItems: "center",
+                                                  justifyContent: "center",
+                                                  gap: "0.5rem",
+                                                }}
                                               >
                                                 {loginLoading ? (
                                                   <>
-                                                    <Spinner /> Logging in...
+                                                    <Spinner inline /> Logging in...
                                                   </>
                                                 ) : (
                                                   "Continue"
@@ -1201,9 +1364,14 @@ const CheckOut = ({
                                         required
                                         value={formData.name}
                                         onChange={handleInputChange}
+                                        onBlur={handleRequiredAddressBlur}
+                                        isInvalid={
+                                          !!errors.name ||
+                                          (validated && !formData.name?.trim())
+                                        }
                                       />
                                       <Form.Control.Feedback type="invalid">
-                                        Please Enter Name.
+                                        {errors.name || "Please enter your name."}
                                       </Form.Control.Feedback>
                                     </Form.Group>
                                   </span>
@@ -1219,7 +1387,11 @@ const CheckOut = ({
                                         placeholder="Enter your email (optional)"
                                         value={formData.email}
                                         onChange={handleInputChange}
+                                        isInvalid={!!errors.email}
                                       />
+                                      <Form.Control.Feedback type="invalid">
+                                        {errors.email || "Please enter a valid email address."}
+                                      </Form.Control.Feedback>
                                     </Form.Group>
                                   </span>
                                   <span
@@ -1235,11 +1407,16 @@ const CheckOut = ({
                                         required
                                         value={formData.phone}
                                         onChange={handleInputChange}
-                                        isInvalid={!!errors.phone || (validated && !formData.phone)}
+                                        onBlur={handleRequiredAddressBlur}
+                                        isInvalid={
+                                          !!errors.phone ||
+                                          (validated && !formData.phone?.trim())
+                                        }
                                         maxLength={11}
                                       />
                                       <Form.Control.Feedback type="invalid">
-                                        {errors.phone || "Please Enter Phone Number."}
+                                        {errors.phone ||
+                                          "Please enter your phone number."}
                                       </Form.Control.Feedback>
                                     </Form.Group>
                                   </span>
@@ -1255,10 +1432,16 @@ const CheckOut = ({
                                         placeholder="Enter your full address"
                                         value={formData.full_address}
                                         onChange={handleInputChange}
+                                        onBlur={handleRequiredAddressBlur}
                                         required
+                                        isInvalid={
+                                          !!errors.full_address ||
+                                          (validated && !formData.full_address?.trim())
+                                        }
                                       />
                                       <Form.Control.Feedback type="invalid">
-                                        Please Enter Full Address.
+                                        {errors.full_address ||
+                                          "Please enter your full address."}
                                       </Form.Control.Feedback>
                                     </Form.Group>
                                   </span>
@@ -1277,7 +1460,8 @@ const CheckOut = ({
                                         value={formData.country}
                                         onChange={handleCountryChange}
                                         isInvalid={
-                                          validated && !formData.country
+                                          !!errors.country ||
+                                          (validated && !formData.country)
                                         }
                                         required
                                       >
@@ -1296,6 +1480,9 @@ const CheckOut = ({
                                         )}
                                       </Form.Select>
                                     </span>
+                                    <Form.Control.Feedback type="invalid">
+                                      {errors.country || "Please select a country."}
+                                    </Form.Control.Feedback>
                                   </Form.Group>
                                   <span
                                     style={{ marginTop: "10px" }}
@@ -1309,10 +1496,16 @@ const CheckOut = ({
                                         placeholder="Enter district"
                                         value={formData.district}
                                         onChange={handleInputChange}
+                                        onBlur={handleRequiredAddressBlur}
                                         required
+                                        isInvalid={
+                                          !!errors.district ||
+                                          (validated && !formData.district?.trim())
+                                        }
                                       />
                                       <Form.Control.Feedback type="invalid">
-                                        Please Enter District.
+                                        {errors.district ||
+                                          "Please enter your district."}
                                       </Form.Control.Feedback>
                                     </Form.Group>
                                   </span>
@@ -1668,6 +1861,11 @@ const CheckOut = ({
                         disabled={isCheckoutDisabled() || checkoutLoading}
                         style={{
                           width: "100%",
+                          minHeight: 48,
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "0.5rem",
                           opacity: isCheckoutDisabled() || checkoutLoading ? 0.6 : 1,
                           cursor: isCheckoutDisabled() || checkoutLoading ? "not-allowed" : "pointer",
                           position: "relative",
@@ -1675,7 +1873,7 @@ const CheckOut = ({
                       >
                         {checkoutLoading ? (
                           <>
-                            <Spinner /> Processing...
+                            <Spinner inline /> Processing...
                           </>
                         ) : (
                           "Place Order"

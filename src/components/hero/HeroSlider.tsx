@@ -9,6 +9,8 @@ interface SlideData {
   price?: string;
   title: string;
   link?: string;
+  titleWhite?: boolean;
+  priceRed?: boolean;
 }
 
 interface HeroSliderProps {
@@ -17,23 +19,31 @@ interface HeroSliderProps {
 
 const defaultSlides: SlideData[] = [
   {
-    image: `${process.env.NEXT_PUBLIC_URL || ""}/assets/img/hero-bg/food-1.jpg`,
-    price: "20.00",
-    title: "Organic & healthy vegetables",
-    link: "#",
+    image: `${process.env.NEXT_PUBLIC_URL || ""}/assets/img/hero-bg/hero-image-1.png`,
+    price: "610",
+    title: "Fuel Your Day the Smart Way.",
+    link: "/products",
   },
   {
-    image: `${process.env.NEXT_PUBLIC_URL || ""}/assets/img/hero-bg/food-2.jpg`,
-    price: "29.99",
-    title: "Explore fresh & juicy fruits",
-    link: "/",
+    image: `${process.env.NEXT_PUBLIC_URL || ""}/assets/img/hero-bg/hero-image-5.png`,
+    price: "675",
+    title: "Rich. Creamy. Irresistible",
+    link: "/products",
+    titleWhite: true,
+    priceRed: true,
   },
   {
-    image: `${process.env.NEXT_PUBLIC_URL || ""}/assets/img/hero-bg/food-3.jpg`,
-    price: "30.00",
-    title: "Explore fresh & juicy fruits",
-    link: "#",
-  }
+    image: `${process.env.NEXT_PUBLIC_URL || ""}/assets/img/hero-bg/hero-image-3.png`,
+    price: "250",
+    title: "Natural Energy. Real Results",
+    link: "/products",
+  },
+  // {
+  //   image: `${process.env.NEXT_PUBLIC_URL || ""}/assets/img/hero-bg/hero-image-2.png`,
+  //   price: "30.00",
+  //   title: "Explore fresh & juicy fruits",
+  //   link: "#",
+  // }
 ];
 
 function HeroSlider({ slides = defaultSlides }: HeroSliderProps) {
@@ -73,11 +83,16 @@ function HeroSlider({ slides = defaultSlides }: HeroSliderProps) {
                       >
                         <div className="gi-slide-content slider-animation">
                           {slide.price && (
-                            <p>
-                              Starting at $ <b>{slide.price}</b>
+                            <p style={slide.priceRed ? { color: "#e53935" } : undefined}>
+                              Starting at <b>{slide.price} BDT</b>
                             </p>
                           )}
-                          <h1 className="gi-slide-title">{slide.title}</h1>
+                          <h1
+                              className="gi-slide-title"
+                              style={slide.titleWhite ? { color: "#fff" } : undefined}
+                            >
+                              {slide.title}
+                            </h1>
                           <div className="gi-slide-btn">
                             {slide.link ? (
                               <Link href={slide.link} className="gi-btn-1">

@@ -1,6 +1,25 @@
 import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
 import { apiCall } from "@/utils/api";
 
+/** Same API params as LatestBlog on home (ignore `force` — used only for cache bypass). */
+function isHomeLatestBlogApiQuery(p?: {
+  limit?: number;
+  ordering?: string;
+  force?: boolean;
+  search?: string;
+  page?: number;
+  tags?: number[];
+}): boolean {
+  if (!p) return false;
+  return (
+    p.limit === 10 &&
+    p.ordering === "-published_at" &&
+    p.page == null &&
+    !p.search &&
+    (!p.tags || p.tags.length === 0)
+  );
+}
+
 // Types
 export interface BlogCategory {
   id: number;
@@ -59,6 +78,11 @@ export interface Blog {
 
 export interface BlogState {
   blogs: Blog[];
+  /** Snapshot for home LatestBlog; not overwritten by other getBlogs calls. */
+  homeLatestBlogs: Blog[];
+  homeLatestBlogsFetched: boolean;
+  homeLatestBlogsLoading: boolean;
+  homeLatestBlogsError: string | null;
   currentBlog: Blog | null;
   featuredBlogs: Blog[];
   tags: BlogTag[];
@@ -74,6 +98,10 @@ export interface BlogState {
 
 const initialState: BlogState = {
   blogs: [],
+  homeLatestBlogs: [],
+  homeLatestBlogsFetched: false,
+  homeLatestBlogsLoading: false,
+  homeLatestBlogsError: null,
   currentBlog: null,
   featuredBlogs: [],
   tags: [],
@@ -96,10 +124,12 @@ export const getBlogs = createAsyncThunk(
     limit?: number;
     tags?: number[];
     ordering?: string;
+    /** Bypass home-strip cache skip (retry). Not sent to API. */
+    force?: boolean;
   }) => {
     try {
       const queryParams = new URLSearchParams();
-      
+
       if (params?.search) queryParams.append("search", params.search);
       if (params?.page) queryParams.append("page", params.page.toString());
       if (params?.limit) queryParams.append("page_size", params.limit.toString());
@@ -114,6 +144,16 @@ export const getBlogs = createAsyncThunk(
     } catch (error: any) {
       throw new Error(error.message || "Failed to fetch blogs");
     }
+  },
+  {
+    condition: (arg, { getState }) => {
+      if (arg?.force) return true;
+      const state = getState() as { blog: BlogState };
+      if (isHomeLatestBlogApiQuery(arg)) {
+        return !state.blog.homeLatestBlogsFetched;
+      }
+      return true;
+    },
   }
 );
 
@@ -180,11 +220,16 @@ const blogSlice = createSlice({
   extraReducers: (builder) => {
     // Get Blogs
     builder
-      .addCase(getBlogs.pending, (state) => {
+      .addCase(getBlogs.pending, (state, action) => {
         state.loading = true;
         state.error = null;
+        const p = action.meta.arg;
+        if (isHomeLatestBlogApiQuery(p)) {
+          state.homeLatestBlogsLoading = true;
+          state.homeLatestBlogsError = null;
+        }
       })
-      .addCase(getBlogs.fulfilled, (state, action: PayloadAction<any>) => {
+      .addCase(getBlogs.fulfilled, (state, action) => {
         state.loading = false;
         if (Array.isArray(action.payload)) {
           state.blogs = action.payload;
@@ -199,10 +244,24 @@ const blogSlice = createSlice({
         } else {
           state.blogs = [];
         }
+        const p = action.meta.arg;
+        if (isHomeLatestBlogApiQuery(p)) {
+          state.homeLatestBlogs = Array.isArray(action.payload)
+            ? action.payload
+            : action.payload.results || [];
+          state.homeLatestBlogsFetched = true;
+          state.homeLatestBlogsLoading = false;
+          state.homeLatestBlogsError = null;
+        }
       })
       .addCase(getBlogs.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message || "Failed to fetch blogs";
+        const p = action.meta.arg;
+        if (isHomeLatestBlogApiQuery(p)) {
+          state.homeLatestBlogsLoading = false;
+          state.homeLatestBlogsError = action.error.message || "Failed to fetch blogs";
+        }
       });
 
     // Get Blog By Slug

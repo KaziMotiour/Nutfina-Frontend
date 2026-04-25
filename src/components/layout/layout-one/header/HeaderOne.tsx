@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useRef, useLayoutEffect, useCallback } from "react";
 import SidebarCart from "../../../model/SidebarCart";
 import MobileManuSidebar from "../../../model/MobileManuSidebar";
 import Dropdown from "react-bootstrap/Dropdown";
@@ -12,6 +12,8 @@ function HeaderOne({ cartItemCount, wishlistItems }: { cartItemCount: number; wi
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [activeMainMenu, setActiveMainMenu] = useState<string | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const mobileBarRef = useRef<HTMLDivElement>(null);
+  const [mobileBarSpacerPx, setMobileBarSpacerPx] = useState(0);
 
   const isAuthenticated = useSelector(
     (state: RootState) => state.user?.isAuthenticated ?? false
@@ -37,9 +39,49 @@ function HeaderOne({ cartItemCount, wishlistItems }: { cartItemCount: number; wi
     setIsMobileMenuOpen(false)
   }
 
+  const isMobileViewport = useCallback(() => {
+    if (typeof window === "undefined") return false;
+    return window.matchMedia("(max-width: 991.98px)").matches;
+  }, []);
+
+  const syncMobileBarSpacer = useCallback(() => {
+    const el = mobileBarRef.current;
+    if (!el || !isMobileViewport()) {
+      setMobileBarSpacerPx(0);
+      return;
+    }
+    setMobileBarSpacerPx(el.offsetHeight);
+  }, [isMobileViewport]);
+
+  useLayoutEffect(() => {
+    syncMobileBarSpacer();
+    window.addEventListener("resize", syncMobileBarSpacer);
+    const el = mobileBarRef.current;
+    const ro =
+      typeof ResizeObserver !== "undefined" && el
+        ? new ResizeObserver(() => syncMobileBarSpacer())
+        : null;
+    if (ro && el) ro.observe(el);
+    return () => {
+      window.removeEventListener("resize", syncMobileBarSpacer);
+      ro?.disconnect();
+    };
+  }, [syncMobileBarSpacer, cartItemCount, wishlistItems?.length]);
+
   return (
     <>
       <style jsx>{`
+        @media (max-width: 991.98px) {
+          .header-one-fixed-mobile {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1020;
+            background-color: #f8f8fb;
+            box-shadow: 0 1px 0 rgba(0, 0, 0, 0.08);
+          }
+        }
         :global(.mobile-user-dropdown .dropdown-menu) {
           min-width: 190px;
           border: 1px solid #eef1ee;
@@ -68,8 +110,15 @@ function HeaderOne({ cartItemCount, wishlistItems }: { cartItemCount: number; wi
           background-color: #f3fbf7;
           color: #1f6f52;
         }
+        :global(.header-one-cart-link .gi-header-count.gi-cart-count) {
+          background-color: #5caf90;
+          color: #fff;
+          opacity: 1;
+          font-weight: 600;
+          border: 1px solid rgba(255, 255, 255, 0.35);
+        }
       `}</style>
-      <div className="header-top">
+      <div ref={mobileBarRef} className="header-top header-one-fixed-mobile">
         <div className="container">
           <div className="row align-itegi-center">
             {/* <!-- Header Top Language Currency -->
@@ -153,7 +202,7 @@ function HeaderOne({ cartItemCount, wishlistItems }: { cartItemCount: number; wi
                       <i className="fi-rr-shopping-bag"></i>
                       <span className="main-label-note-new"></span>
                     </div>
-                    <span className="gi-header-count gi-cart-count">
+                    <span className="gi-header-count gi-cart-count header-one-cart-count">
                       {cartItemCount}
                     </span>
                   </Link>
@@ -174,6 +223,13 @@ function HeaderOne({ cartItemCount, wishlistItems }: { cartItemCount: number; wi
           </div>
         </div>
       </div>
+      <div
+        className="d-lg-none"
+        aria-hidden
+        style={{
+          height: mobileBarSpacerPx > 0 ? mobileBarSpacerPx : 56,
+        }}
+      />
       <SidebarCart isCartOpen={isCartOpen} closeCart={closeCart} />
       <MobileManuSidebar
         isMobileMenuOpen={isMobileMenuOpen}

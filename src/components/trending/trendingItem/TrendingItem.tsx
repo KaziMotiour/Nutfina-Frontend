@@ -53,7 +53,7 @@ const TrendingItem = ({ data }) => {
           <div className="gi-pro-image-outer">
             <div className="gi-pro-image">
               <a href="/product-left-sidebar" className="image">
-                <img className="main-image" src={data.image} alt="Product" />
+                <img className="main-image" src={data.image} alt="Product" loading="lazy" decoding="async" />
               </a>
             </div>
           </div>

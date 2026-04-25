@@ -570,7 +570,7 @@ const Cart = ({
                         </SwiperSlide>
                       ))
                     ) : (
-                      <div style={{ textAlign: "center", padding: "40px", width: "100%" }}>
+                      <div className="text-center" style={{ textAlign: "center", padding: "40px", width: "100%" }}>
                         <p>No related products available</p>
                       </div>
                     )}

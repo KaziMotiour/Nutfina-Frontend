@@ -11,17 +11,14 @@ import FeatureTools from "@/theme/ThemeSwitcher";
 function Header() {
   const dispatch = useDispatch<AppDispatch>();
   const cart = useSelector((state: RootState) => state.order.cart);
-  const cartLoading = useSelector((state: RootState) => state.order.loading);
   const wishlistItems = useSelector(
     (state: RootState) => state.wishlist.wishlist
   );
 
-  // Fetch cart on mount only if not already loading and cart doesn't exist
+  // Refresh cart from the API on every mount (full page reload / client navigation into layout).
   useEffect(() => {
-    if (!cartLoading && !cart) {
-      dispatch(getCart());
-    }
-  }, [dispatch, cartLoading, cart]);
+    dispatch(getCart());
+  }, [dispatch]);
 
   // Get cart item count from backend
   const cartItemCount = cart?.item_count || cart?.items?.length || 0;

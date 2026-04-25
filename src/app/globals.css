@@ -236,6 +236,40 @@ a {
   justify-content: center;
 }
 
+/* Standard size for all product images on single product page */
+.gi-single-product .single-pro-img .single-product-scroll .single-slide.zoom-image-hover {
+  min-height: 400px;
+  max-height: 600px;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+}
+.gi-single-product .single-pro-img .single-product-scroll .single-slide.zoom-image-hover .iiz {
+  width: 100%;
+  min-height: 400px;
+  max-height: 600px;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+}
+/* Only the base image — do not style .iiz__zoom-img (breaks react-inner-image-zoom math). */
+.gi-single-product .single-pro-img .single-product-scroll .single-slide.zoom-image-hover .iiz__img {
+  max-height: 600px !important;
+  min-height: 400px !important;
+  width: auto !important;
+  max-width: 100% !important;
+  object-fit: contain !important;
+  margin: 0 auto;
+}
+/* Standard size for product thumbnails */
+.gi-single-product .single-nav-thumb .single-slide img {
+  width: 100%;
+  height: 100px;
+  min-height: 100px;
+  max-height: 100px;
+  object-fit: contain;
+}
+
 .Toastify__toast-container {
   width: auto !important;
   position: fixed !important;

@@ -47,8 +47,6 @@ const ProductPage = ({
   // Fetch the product when productId is available
   useEffect(() => {
     if (productId) {
-      // The backend uses slug for product lookup
-      // If productId is actually an ID, you may need to modify the backend or fetch by ID first
       dispatch(getProduct(productId));
     }
   }, [productId, dispatch]);
@@ -65,6 +63,12 @@ const ProductPage = ({
     [dispatch]
   );
 
+  // Only treat currentProduct as valid when it matches the requested productId (avoids showing previous product)
+  const productMatchesRoute =
+    currentProduct &&
+    productId &&
+    (currentProduct.slug === productId || String(currentProduct.id) === String(productId));
+
   // Show loading state if fetching product details
   if (productId && productLoading) {
     return (
@@ -77,6 +81,15 @@ const ProductPage = ({
   // Show error if product fetch failed
   if (productId && productError) {
     return <div>Failed to load product: {productError}</div>;
+  }
+
+  // Show loading until we have the product that matches this page (prevents flashing old product)
+  if (productId && !productMatchesRoute) {
+    return (
+      <div>
+        <Spinner />
+      </div>
+    );
   }
 
   // Show loading for additional products (only if no productId)

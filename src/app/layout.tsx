@@ -2,6 +2,7 @@ import "./globals.css";
 
 import Providers from "@/store/Provider";
 import { Loader } from "@/components/loader";
+import FacebookPixel from "@/components/pixel-setup/facebook-pixel";
 
 interface RootLayoutProps {
   children: React.ReactNode;
@@ -12,7 +13,7 @@ export const metadata = {
   description: "A healthy lifestyle platform.",
 
   icons: {
-    icon: "/header-log-2.png",
+    icon: "/header-logo.png",
   },
 };
 
@@ -25,6 +26,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
             <div>{children}</div>
           </Providers>
         </Loader>
+        <FacebookPixel />
       </body>
     </html>
   );

@@ -84,7 +84,27 @@ const BlogDetail = ({ slug }: any) => {
   if (loading) {
     return (
       <Col lg={8} md={12} className="gi-blogs-rightside">
-        <Spinner />
+        <div className="blogdetail-message blogdetail-message--loading">
+          <Spinner />
+          <p className="blogdetail-message__text">Loading post...</p>
+        </div>
+        <style jsx>{`
+          .blogdetail-message--loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 2.5rem 1.5rem;
+            background: #f8f6f3;
+            border-radius: 16px;
+            border: 1px solid #e8e4de;
+          }
+          .blogdetail-message--loading .blogdetail-message__text {
+            color: #6b6b6b;
+            font-size: 0.95rem;
+            margin: 0;
+          }
+        `}</style>
       </Col>
     );
   }
@@ -92,22 +112,77 @@ const BlogDetail = ({ slug }: any) => {
   if (error) {
     return (
       <Col lg={8} md={12} className="gi-blogs-rightside">
-        <div className="gi-pro-content cart-pro-title">
-          <p>Error loading blog: {error}</p>
-          <p>Slug used: {slug}</p>
-          <p>Please check the console for more details.</p>
+        <div className="blogdetail-message blogdetail-message--error">
+          <div className="blogdetail-message__icon">
+            <i className="fi-rr-info" aria-hidden />
+          </div>
+          <h3 className="blogdetail-message__title">Oops, we hit a snag</h3>
+          <p className="blogdetail-message__text">
+            We couldn&apos;t load this post — maybe check your connection? Hit the button below to try again.
+          </p>
+          <button
+            type="button"
+            className="blogdetail-message__retry"
+            onClick={() => slug && dispatch(getBlogBySlug(slug) as any)}
+          >
+            <i className="fi-rr-refresh" /> Give it another shot
+          </button>
         </div>
-      </Col>
-    );
-  }
-
-  if (!loading && !currentBlog) {
-    return (
-      <Col lg={8} md={12} className="gi-blogs-rightside">
-        <div className="gi-pro-content cart-pro-title">
-          <p>Blog not found</p>
-          <p>Slug used: {slug}</p>
-        </div>
+        <style jsx>{`
+          .blogdetail-message {
+            text-align: center;
+            padding: 2rem 1.25rem;
+            border-radius: 16px;
+            margin-top: 0.5rem;
+            background: #f8f6f3;
+            border: 1px solid #e8e4de;
+          }
+          .blogdetail-message__icon {
+            width: 52px;
+            height: 52px;
+            margin: 0 auto 0.75rem;
+            border-radius: 50%;
+            background: #eee9e2;
+            color: #8b7355;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+          }
+          .blogdetail-message__title {
+            font-size: 1.15rem;
+            font-weight: 600;
+            color: #4a4a4a;
+            margin-bottom: 0.35rem;
+          }
+          .blogdetail-message__text {
+            color: #6b6b6b;
+            margin-bottom: 1rem;
+            max-width: 380px;
+            margin-left: auto;
+            margin-right: auto;
+            font-size: 0.95rem;
+            line-height: 1.5;
+          }
+          .blogdetail-message__retry {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.5rem 1rem;
+            background: #03492f;
+            color: #fff;
+            border: none;
+            border-radius: 999px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: background 0.2s ease, transform 0.15s ease;
+          }
+          .blogdetail-message__retry:hover {
+            background: #023020;
+            transform: scale(1.02);
+          }
+        `}</style>
       </Col>
     );
   }
@@ -115,14 +190,50 @@ const BlogDetail = ({ slug }: any) => {
   if (!currentBlog) {
     return (
       <Col lg={8} md={12} className="gi-blogs-rightside">
-        <Spinner />
+        <div className="blogdetail-message blogdetail-message--empty">
+          <div className="blogdetail-message__icon">
+            <i className="fi-rr-document" aria-hidden />
+          </div>
+          <h3 className="blogdetail-message__title">This post isn&apos;t here</h3>
+          <p className="blogdetail-message__text">
+            We couldn&apos;t find that article. It may have been moved or the link might be wrong.
+          </p>
+          <Link href="/blogs" className="blogdetail-message__link">
+            <i className="fi-rr-arrow-left" /> Back to blog
+          </Link>
+        </div>
+        <style jsx>{`
+          .blogdetail-message--empty .blogdetail-message__icon {
+            width: 48px;
+            height: 48px;
+            font-size: 1.25rem;
+          }
+          .blogdetail-message__link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.5rem 1rem;
+            background: #03492f;
+            color: #fff;
+            border-radius: 999px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            text-decoration: none;
+            transition: background 0.2s ease, transform 0.15s ease;
+          }
+          .blogdetail-message__link:hover {
+            background: #023020;
+            color: #fff;
+            transform: scale(1.02);
+          }
+        `}</style>
       </Col>
     );
   }
 
   return (
     <>
-      <Col lg={8} md={12} className="gi-blogs-rightside order-2 order-lg-2">
+      <Col lg={8} md={12} className="gi-blogs-rightside order-1 order-lg-2">
         {/* <!-- Blog content Start --> */}
         <div className="gi-blogs-content">
           <div className="gi-blogs-inner">
@@ -215,7 +326,7 @@ const BlogDetail = ({ slug }: any) => {
                       </div>
                   )}
                   {currentBlog.content ? (
-                    <div>{renderContent(currentBlog.content)}</div>
+                    <div dangerouslySetInnerHTML={{ __html: currentBlog.content }} />
                   ) : (
                     <p className="gi-text">No content available for this blog post.</p>
                   )}
@@ -279,7 +390,7 @@ const BlogDetail = ({ slug }: any) => {
       <Col
         lg={4}
         md={12}
-        className="gi-blogs-sidebar gi-blogs-leftside m-t-991 order-1 order-lg-1"
+        className="gi-blogs-sidebar gi-blogs-leftside m-t-991 order-2 order-lg-1"
       >
         <div className="gi-blog-sidebar-wrap">
           {/* <!-- Sidebar Recent Blog Block --> */}

@@ -79,12 +79,31 @@ const BlogPage = ({ order = "", lg = 12, md }: any) => {
     <>
       <Col lg={lg} md={12} className={`gi-blogs-rightside ${order}`}>
         {loading ? (
-          <>
+          <div className="blogpage-message blogpage-message--loading">
             <Spinner />
-          </>
+            <p className="blogpage-message__text">Fetching posts...</p>
+          </div>
         ) : error ? (
-          <div className="gi-pro-content cart-pro-title">
-            Failed to load blogs: {error}
+          <div className="blogpage-message blogpage-message--error">
+            <div className="blogpage-message__icon">
+              <i className="fi-rr-info" aria-hidden />
+            </div>
+            <h3 className="blogpage-message__title">Oops, we hit a snag</h3>
+            <p className="blogpage-message__text">
+              Posts didn&apos;t load — maybe check your connection? Hit the button below and we&apos;ll try again.
+            </p>
+            <button
+              type="button"
+              className="blogpage-message__retry"
+              onClick={() => {
+                const params: any = { page: currentPage, limit: itemsPerPage, ordering: "-published_at" };
+                if (searchTerm) params.search = searchTerm;
+                if (selectedCategory?.[0]) params.category = selectedCategory[0];
+                dispatch(getBlogs(params) as any);
+              }}
+            >
+              <i className="fi-rr-refresh" /> Give it another shot
+            </button>
           </div>
         ) : (
           <>
@@ -102,9 +121,12 @@ const BlogPage = ({ order = "", lg = 12, md }: any) => {
 
             {/* <!-- Pagination Start --> */}
             {blogs.length === 0 ? (
-              <span className="gi-pro-content cart-pro-title">
-                Blog record is not found.
-              </span>
+              <div className="blogpage-message blogpage-message--empty">
+                <div className="blogpage-message__icon">
+                  <i className="fi-rr-document" aria-hidden />
+                </div>
+                <p className="blogpage-message__text">No posts yet — try a different search or check back later.</p>
+              </div>
             ) : (
               <div className="gi-pro-pagination">
                 <span>
@@ -123,6 +145,81 @@ const BlogPage = ({ order = "", lg = 12, md }: any) => {
           </>
         )}
       </Col>
+      <style jsx>{`
+        .blogpage-message {
+          text-align: center;
+          padding: 2rem 1.25rem;
+          border-radius: 16px;
+          margin-top: 0.5rem;
+          background: #f8f6f3;
+          border: 1px solid #e8e4de;
+        }
+        .blogpage-message--loading {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 0.75rem;
+          padding: 2.5rem 1.5rem;
+        }
+        .blogpage-message--loading .blogpage-message__text {
+          color: #6b6b6b;
+          font-size: 0.95rem;
+          margin: 0;
+        }
+        .blogpage-message__icon {
+          width: 52px;
+          height: 52px;
+          margin: 0 auto 0.75rem;
+          border-radius: 50%;
+          background: #eee9e2;
+          color: #8b7355;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 1.4rem;
+        }
+        .blogpage-message--empty .blogpage-message__icon {
+          width: 48px;
+          height: 48px;
+          font-size: 1.25rem;
+        }
+        .blogpage-message__title {
+          font-size: 1.15rem;
+          font-weight: 600;
+          color: #4a4a4a;
+          margin-bottom: 0.35rem;
+        }
+        .blogpage-message__text {
+          color: #6b6b6b;
+          margin-bottom: 1rem;
+          max-width: 380px;
+          margin-left: auto;
+          margin-right: auto;
+          font-size: 0.95rem;
+          line-height: 1.5;
+        }
+        .blogpage-message--empty .blogpage-message__text {
+          margin-bottom: 0;
+        }
+        .blogpage-message__retry {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.4rem;
+          padding: 0.5rem 1rem;
+          background: #03492f;
+          color: #fff;
+          border: none;
+          border-radius: 999px;
+          font-weight: 600;
+          font-size: 0.9rem;
+          cursor: pointer;
+          transition: background 0.2s ease, transform 0.15s ease;
+        }
+        .blogpage-message__retry:hover {
+          background: #023020;
+          transform: scale(1.02);
+        }
+      `}</style>
 
       {/* <!-- Sidebar Area Start --> */}
       <Col

@@ -10,13 +10,6 @@ import Spinner from "../button/Spinner";
 import Link from "next/link";
 import { API_BASE_URL } from "@/utils/api";
 
-// Helper function to get backend base URL (without /api)
-const getBackendBaseUrl = (): string => {
-  const apiUrl = API_BASE_URL || "http://localhost:8000/api";
-  // Remove /api from the end if present
-  return apiUrl.replace(/\/api$/, "");
-};
-
 // Helper function to construct full image URL
 const constructImageUrl = (imagePath: string | null | undefined): string => {
   const rawPath = (imagePath || "").trim();
@@ -70,36 +63,32 @@ const LatestBlog = ({
   onError = () => { },
 }) => {
   const dispatch = useDispatch<AppDispatch>();
-  const { blogs, loading, error } = useSelector((state: RootState) => state.blog);
+  const {
+    homeLatestBlogs,
+    homeLatestBlogsFetched,
+    homeLatestBlogsLoading,
+    homeLatestBlogsError,
+  } = useSelector((state: RootState) => state.blog);
 
+  // Fetch once per session (cached in Redux + persist). Skipped when `homeLatestBlogsFetched`.
+  // `onSuccess`/`onError` omitted from deps (unstable default prop functions).
   useEffect(() => {
-    console.log("blogs", blogs);
-    dispatch(getBlogs({ limit: 10, ordering: "-published_at" }))
-      .then((result) => {
-        if (getBlogs.fulfilled.match(result)) {
-          onSuccess();
-        }
-      })
-      .catch(() => {
+    dispatch(getBlogs({ limit: 10, ordering: "-published_at" })).then((action) => {
+      if (getBlogs.fulfilled.match(action)) {
+        onSuccess();
+      } else if (
+        getBlogs.rejected.match(action) &&
+        !(action as { meta?: { condition?: boolean } }).meta?.condition
+      ) {
         onError();
-      });
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- callbacks intentionally omitted
   }, [dispatch]);
 
-
-  useEffect(() => {
-    // Fetch latest blogs (limit to 10, ordered by published_at)
-    if (!loading && blogs.length === 0) {
-      dispatch(getBlogs({ limit: 10, ordering: "-published_at" }))
-        .then((result) => {
-          if (getBlogs.fulfilled.match(result)) {
-            onSuccess();
-          }
-        })
-        .catch(() => {
-          onError();
-        });
-    }
-  }, [dispatch, loading, blogs.length, onSuccess, onError]);
+  const showLoading =
+    homeLatestBlogsLoading ||
+    (!homeLatestBlogsFetched && !homeLatestBlogsError);
 
   // Format date
   const formatDate = (dateString: string) => {
@@ -155,31 +144,200 @@ const LatestBlog = ({
     };
   };
 
-  if (loading) {
+  if (homeLatestBlogsError) {
     return (
-      <div style={{ padding: "40px", textAlign: "center" }}>
-        <Spinner />
-      </div>
+      <section className="gi-blog-section padding-tb-40 wow fadeInUp">
+        <div className="container">
+          <div className="row m-b-minus-24px">
+            <div className="section-title">
+              <div className="section-detail">
+                <h2 className="gi-title">
+                  Latest <span>Blog</span>
+                </h2>
+              </div>
+            </div>
+            <div className="blog-message blog-message--error">
+              <div className="blog-message__icon">
+                <i className="fi-rr-info" aria-hidden />
+              </div>
+              <h3 className="blog-message__title">Oops, we hit a snag</h3>
+              <p className="blog-message__text">
+                Posts didn&apos;t load — maybe check your connection? Hit the button below and we&apos;ll try again.
+              </p>
+              <button
+                type="button"
+                className="blog-message__retry"
+                onClick={() =>
+                  dispatch(
+                    getBlogs({
+                      limit: 10,
+                      ordering: "-published_at",
+                      force: true,
+                    })
+                  )
+                }
+              >
+                <i className="fi-rr-refresh" /> Give it another shot
+              </button>
+            </div>
+          </div>
+        </div>
+        <style jsx>{`
+          .blog-message {
+            text-align: center;
+            padding: 2rem 1.25rem;
+            border-radius: 16px;
+            margin-top: 1rem;
+          }
+          .blog-message--error {
+            background: #f8f6f3;
+            border: 1px solid #e8e4de;
+          }
+          .blog-message__icon {
+            width: 52px;
+            height: 52px;
+            margin: 0 auto 0.75rem;
+            border-radius: 50%;
+            background: #eee9e2;
+            color: #8b7355;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+          }
+          .blog-message__title {
+            font-size: 1.15rem;
+            font-weight: 600;
+            color: #4a4a4a;
+            margin-bottom: 0.35rem;
+          }
+          .blog-message__text {
+            color: #6b6b6b;
+            margin-bottom: 1rem;
+            max-width: 380px;
+            margin-left: auto;
+            margin-right: auto;
+            font-size: 0.95rem;
+            line-height: 1.5;
+          }
+          .blog-message__retry {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.5rem 1rem;
+            background: #03492f;
+            color: #fff;
+            border: none;
+            border-radius: 999px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: background 0.2s ease, transform 0.15s ease;
+          }
+          .blog-message__retry:hover {
+            background: #023020;
+            transform: scale(1.02);
+          }
+        `}</style>
+      </section>
     );
   }
 
-  if (error) {
+  if (showLoading) {
     return (
-      <div style={{ padding: "40px", textAlign: "center", color: "#dc3545" }}>
-        Failed to load blogs: {error}
-      </div>
+      <section className="gi-blog-section padding-tb-40 wow fadeInUp">
+        <div className="container">
+          <div className="row m-b-minus-24px">
+            <div className="section-title">
+              <div className="section-detail">
+                <h2 className="gi-title">
+                  Latest <span>Blog</span>
+                </h2>
+                <p>We tackle interesting topics every day in 2023.</p>
+              </div>
+            </div>
+            <div className="blog-message blog-message--loading">
+              <Spinner />
+              <p className="blog-message__text">Fetching latest posts...</p>
+            </div>
+          </div>
+        </div>
+        <style jsx>{`
+          .blog-message--loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
+            padding: 2.5rem 1.5rem;
+            margin-top: 1rem;
+            background: #f8f6f3;
+            border-radius: 16px;
+            border: 1px solid #e8e4de;
+          }
+          .blog-message--loading .blog-message__text {
+            color: #6b6b6b;
+            font-size: 0.95rem;
+            margin: 0;
+          }
+        `}</style>
+      </section>
     );
   }
 
-  if (!blogs || blogs.length === 0) {
+  if (!homeLatestBlogs || homeLatestBlogs.length === 0) {
     return (
-      <div style={{ padding: "40px", textAlign: "center" }}>
-        No blogs found.
-      </div>
+      <section className="gi-blog-section padding-tb-40 wow fadeInUp">
+        <div className="container">
+          <div className="row m-b-minus-24px">
+            <div className="section-title">
+              <div className="section-detail">
+                <h2 className="gi-title">
+                  Latest <span>Blog</span>
+                </h2>
+                <p>We tackle interesting topics every day in 2023.</p>
+              </div>
+            </div>
+            <div className="blog-message blog-message--empty">
+              <div className="blog-message__icon">
+                <i className="fi-rr-document" aria-hidden />
+              </div>
+              <p className="blog-message__text">No posts yet — check back soon for updates.</p>
+            </div>
+          </div>
+        </div>
+        <style jsx>{`
+          .blog-message--empty {
+            text-align: center;
+            padding: 2rem 1.25rem;
+            margin-top: 1rem;
+            background: #f8f6f3;
+            border-radius: 16px;
+            border: 1px solid #e8e4de;
+          }
+          .blog-message--empty .blog-message__icon {
+            width: 48px;
+            height: 48px;
+            margin: 0 auto 0.75rem;
+            border-radius: 50%;
+            background: #eee9e2;
+            color: #8b7355;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+          }
+          .blog-message--empty .blog-message__text {
+            color: #6b6b6b;
+            margin: 0;
+            font-size: 0.95rem;
+          }
+        `}</style>
+      </section>
     );
   }
 
-  const blogData = blogs.map(transformBlogData);
+  const blogData = homeLatestBlogs.map(transformBlogData);
   return (
     <Fade triggerOnce direction="up">
       <section className="gi-blog-section padding-tb-40 wow fadeInUp">
@@ -209,11 +367,11 @@ const LatestBlog = ({
                   spaceBetween: 0,
                 },
                 320: {
-                  slidesPerView: 1,
+                  slidesPerView: 2,
                   spaceBetween: 2,
                 },
                 425: {
-                  slidesPerView: 1,
+                  slidesPerView: 2,
                   spaceBetween: 2,
                 },
                 576: {

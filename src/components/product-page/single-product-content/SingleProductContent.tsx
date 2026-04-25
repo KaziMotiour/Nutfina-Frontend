@@ -85,7 +85,8 @@ const SingleProductContent = ({
 
         const getImageUrl = (img: any) => {
         if (!img) return "/assets/img/common/placeholder.png";
-        return img.image || "/assets/img/common/placeholder.png";
+        const url = img.image_url || img.image;
+        return url || "/assets/img/common/placeholder.png";
         };
 
         // Get price and old price
@@ -377,6 +378,7 @@ const SingleProductContent = ({
                                 onClick={handleAddToCart}
                                 disabled={isAddingToCart}
                             >
+                                <i className="fi-rr-shopping-basket"></i>&nbsp;
                                 {isAddingToCart ? 'Adding...' : 'Add To Cart'}
                             </button>
 
@@ -384,6 +386,7 @@ const SingleProductContent = ({
                                 className="btn buy-now-btn"
                                 onClick={handleBuyNow}
                             >
+                                <i className="fi-rr-shopping-cart-check"></i>&nbsp;
                                 Buy Now
                             </button>
                         </div>

@@ -1,12 +1,11 @@
   import { useEffect, useState } from "react";
-  import StarRating from "../stars/StarRating";
   import QuickViewModal from "../model/QuickViewModal";
   import { useDispatch, useSelector } from "react-redux";
-  import Link from "next/link";
+  import { useRouter } from "next/navigation";
   import { showSuccessToast, showErrorToast } from "../toast-popup/Toastify";
   import { RootState, AppDispatch } from "@/store";
   import { addWishlist, removeWishlist } from "@/store/reducers/wishlistSlice";
-  import { addToCart, getCart } from "@/store/reducers/orderSlice";
+  import { addToCart } from "@/store/reducers/orderSlice";
   // import { addCompare, removeCompareItem } from "@/store/reducers/compareSlice";
   import SidebarCart from "../model/SidebarCart";
 
@@ -32,10 +31,27 @@
     sale: string;
   }
   const ItemCard = ({ data, showAddToCart = false }: any) => {
+    const router = useRouter();
     const [isCartOpen, setIsCartOpen] = useState(false);
     const [show, setShow] = useState(false);
     const [isAddingToCart, setIsAddingToCart] = useState(false);
+    const [imageLoaded, setImageLoaded] = useState(false);
     const dispatch = useDispatch<AppDispatch>();
+    const productHref = `/product-details/${data.slug}`;
+
+    const goToProduct = () => {
+      router.push(productHref);
+    };
+
+    const handleCardActivate = (e: React.MouseEvent | React.KeyboardEvent) => {
+      const el = e.target as HTMLElement;
+      if (el.closest(".item-card-no-nav")) return;
+      goToProduct();
+    };
+
+    useEffect(() => {
+      setImageLoaded(false);
+    }, [data?.image]);
     // const compareItems = useSelector((state: RootState) => state.compare.compare);
     const wishlistItems = useSelector(
       (state: RootState) => state.wishlist.wishlist
@@ -65,7 +81,8 @@
         await dispatch(addToCart({ variant_id: variantId, quantity: 1 })).unwrap();
         showSuccessToast("Product added to cart successfully!");
       } catch (error: any) {
-        showErrorToast(error || "Failed to add product to cart");
+        const errorMessage = error?.message || error?.detail || error || "Failed to add product to cart";
+        showErrorToast(errorMessage);
       } finally {
         setIsAddingToCart(false);
       }
@@ -99,6 +116,38 @@
     return (
       <>
         <style jsx>{`
+          .itemcard-image-wrap {
+            position: relative;
+            min-height: 220px;
+            background: #f5f5f5;
+          }
+          .itemcard-image-wrap .image {
+            display: block;
+            min-height: 220px;
+          }
+          .itemcard-image-loader {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f5f5f5;
+            z-index: 1;
+          }
+          .itemcard-image-wrap .main-image {
+            transition: opacity 0.25s ease;
+          }
+          .itemcard-spinner {
+            width: 36px;
+            height: 36px;
+            border: 3px solid #e8e8e8;
+            border-top-color: #03492f;
+            border-radius: 50%;
+            animation: itemcard-spin 0.8s linear infinite;
+          }
+          @keyframes itemcard-spin {
+            to { transform: rotate(360deg); }
+          }
           .add-to-cart-btn:hover {
             background-color:rgb(70, 145, 112) !important;
             transition: background-color 0.3s ease;
@@ -126,22 +175,49 @@
               gap: 4px;
             }
           }
+          .item-card-clickable {
+            cursor: pointer;
+          }
         `}</style>
         <div className="gi-product-content">
-          <div className={` gi-product-inner`}>
+          <div
+            className="gi-product-inner item-card-clickable"
+            role="link"
+            tabIndex={0}
+            aria-label={`View product: ${data.title ?? "product"}`}
+            onClick={handleCardActivate}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                handleCardActivate(e);
+              }
+            }}
+          >
             <div className="gi-pro-image-outer">
-              <div className="gi-pro-image">
-                <Link href={`/product-details/${data.slug}`} className="image">
+              <div className="gi-pro-image itemcard-image-wrap">
+                {!imageLoaded && (
+                  <div className="itemcard-image-loader" aria-hidden>
+                    <span className="itemcard-spinner" />
+                  </div>
+                )}
+                <div className="image">
                   <span className="label veg">
                     <span className="dot"></span>
                   </span>
-                  <img className="main-image" src={data.image} alt="Product" />
+                  <img
+                    className="main-image"
+                    src={data.image}
+                    alt=""
+                    style={{ opacity: imageLoaded ? 1 : 0 }}
+                    onLoad={() => setImageLoaded(true)}
+                    onError={() => setImageLoaded(true)}
+                  />
                   <img
                     className="hover-image"
                     src={data.imageTwo}
-                    alt="Product"
+                    alt=""
                   />
-                </Link>
+                </div>
                 <span className="flags">
                   {data.sale && (
                     <span className={data.sale === "Sale" ? "sale" : "new"}>
@@ -149,9 +225,13 @@
                     </span>
                   )}
                 </span>
-                <div className="gi-pro-actions">
+                <div className="gi-pro-actions item-card-no-nav">
                   <button
-                    onClick={() => handleWishlist(data)}
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleWishlist(data);
+                    }}
                     className={
                       "gi-btn-group wishlist " +
                       (isInWishlist(data) ? "active" : "")
@@ -161,12 +241,16 @@
                     <i className="fi-rr-heart"></i>
                   </button>
                   <button
+                    type="button"
                     className="gi-btn-group quickview gi-cart-toggle"
                     data-link-action="quickview"
                     title="Quick view"
                     data-bs-toggle="modal"
                     data-bs-target="#gi_quickview_modal"
-                    onClick={handleShow}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleShow();
+                    }}
                   >
                     <i className="fi-rr-eye"></i>
                   </button>
@@ -226,38 +310,39 @@
               </div>
             </div>
             <div className="gi-pro-content">
-              <Link href={`/product-details/${data.slug}`}>
                 <h6 className="gi-pro-stitle">
                     {data.category}
                 </h6>
-                </Link>
                 <h5 className="gi-pro-title">
-                    <Link href={`/product-details/${data.slug}`}>{data.title}</Link>
+                    {data.title}
                 </h5>
                 <div className="gi-pro-rat-price">
-                  <span className="qty" style={{ fontSize: '14px' }}>
-                      <Link href={`/product-details/${data.slug}`} style={{ color: '#000000' }}>{data.weight}</Link>
+                  <span className="qty" style={{ fontSize: '14px', color: '#000000' }}>
+                      {data.weight}
                     </span>
                   <span className="gi-pro-rating">
                     {/* <StarRating rating={data.rating} /> */}
                   </span>
                   <span className="gi-price">
-                    <Link href={`/product-details/${data.slug}`} className="item-price-link">
+                    <span className="item-price-link">
                       <div className="item-price-wrap mb-2">
                         <span className="new-price">{data.newPrice}.00 BDT</span>
                         {data.sale && <span className="old-price">{data.oldPrice}.00 BDT</span>}
                       </div>
-                    </Link>
+                    </span>
                   </span>
                 </div>
-              {/* </Link> */}
             </div>
             {showAddToCart && (
-                <div className="col-12 d-flex justify-content-center p-2">
+                <div className="col-12 d-flex justify-content-center p-2 item-card-no-nav">
                   <button
+                    type="button"
                     title="Quick view"
                     className="gi-btn-group add-to-cart add-to-cart-btn border rounded p-2 w-100 w-sm-auto mt-2 mt-sm-0"
-                    onClick={handleShow}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleShow();
+                    }}
                     style={{ backgroundColor: '#5caf90', color: '#fff', opacity: 1 }}
                   >
                     <i className="fi-rr-eye"></i>

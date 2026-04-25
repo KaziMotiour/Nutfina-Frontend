@@ -15,6 +15,7 @@ import userSlice from "./reducers/userSlice";
 import shopSlice from "./reducers/shopSlice";
 import orderSlice from "./reducers/orderSlice";
 import blogSlice from "./reducers/blogSlice";
+import adminSlice from "./reducers/adminSlice";
 
 // Configure persist for each slice separately
 const persistConfigCart = { key: "cart", storage };
@@ -30,8 +31,14 @@ const persistConfigUser = {
   whitelist: ["user", "token", "refreshToken", "isAuthenticated", "addresses"] // Only persist these fields
 };
 const persistConfigShop = { key: "shop", storage };
-const persistConfigOrder = { key: "order", storage };
+const persistConfigOrder = {
+  key: "order",
+  storage,
+  // Never persist request flags — a stuck `loading: true` blocks `getCart` after reload.
+  blacklist: ["loading", "error"],
+};
 const persistConfigBlog = { key: "blog", storage };
+const persistConfigAdmin = { key: "admin", storage };
 
 // Wrap each reducer with persistReducer
 const persistedCartReducer = persistReducer(persistConfigCart, cartSlice);
@@ -57,6 +64,7 @@ const persistedUserReducer = persistReducer(persistConfigUser, userSlice);
 const persistedShopReducer = persistReducer(persistConfigShop, shopSlice);
 const persistedOrderReducer = persistReducer(persistConfigOrder, orderSlice);
 const persistedBlogReducer = persistReducer(persistConfigBlog, blogSlice);
+const persistedAdminReducer = persistReducer(persistConfigAdmin, adminSlice);
 
 // Combine reducers
 const rootReducer = combineReducers({
@@ -71,6 +79,7 @@ const rootReducer = combineReducers({
   shop: persistedShopReducer,
   order: persistedOrderReducer,
   blog: persistedBlogReducer,
+  admin: persistedAdminReducer,
 });
 
 // Configure store

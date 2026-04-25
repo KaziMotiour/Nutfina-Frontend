@@ -86,6 +86,8 @@ export interface ShopState {
   categories: Category[];
   products: Product[];
   featuredProducts: Product[];
+  /** Set after a successful featured-products fetch; skip refetch on revisit unless `force`. */
+  featuredProductsFetched: boolean;
   relatedProducts: Product[];
   productVariants: ProductVariant[];
   inventory: Inventory[];
@@ -104,6 +106,7 @@ const initialState: ShopState = {
   categories: [],
   products: [],
   featuredProducts: [],
+  featuredProductsFetched: false,
   relatedProducts: [],
   productVariants: [],
   inventory: [],
@@ -232,13 +235,24 @@ export const getProduct = createAsyncThunk(
 
 export const getFeaturedProducts = createAsyncThunk(
   "shop/getFeaturedProducts",
-  async (_, { rejectWithValue }) => {
+  async (arg: { force?: boolean } | void, { rejectWithValue }) => {
     try {
       const response = await apiCall("/shop/products/featured/");
       return Array.isArray(response) ? response : response.results || [];
     } catch (error: any) {
       return rejectWithValue(error.message || "Failed to get featured products");
     }
+  },
+  {
+    condition: (arg, { getState }) => {
+      const force =
+        typeof arg === "object" &&
+        arg !== null &&
+        Boolean((arg as { force?: boolean }).force);
+      if (force) return true;
+      const state = getState() as { shop: ShopState };
+      return !state.shop.featuredProductsFetched;
+    },
   }
 );
 
@@ -547,6 +561,13 @@ const shopSlice = createSlice({
         state.loading = false;
         state.error = action.payload as string;
       })
+      .addCase(getProduct.pending, (state, action) => {
+        // Clear current product when fetching a (possibly different) product to avoid showing stale data
+        const requested = action.meta.arg;
+        if (!state.currentProduct || (String(state.currentProduct.id) !== String(requested) && state.currentProduct.slug !== requested)) {
+          state.currentProduct = null;
+        }
+      })
       .addCase(getProduct.fulfilled, (state, action) => {
         state.currentProduct = action.payload;
       })
@@ -572,6 +593,7 @@ const shopSlice = createSlice({
       .addCase(getFeaturedProducts.fulfilled, (state, action) => {
         state.loading = false;
         state.featuredProducts = action.payload;
+        state.featuredProductsFetched = true;
       })
       .addCase(getFeaturedProducts.rejected, (state, action) => {
         state.loading = false;

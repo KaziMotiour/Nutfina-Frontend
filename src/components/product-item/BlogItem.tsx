@@ -7,9 +7,26 @@ function BlogItem({ data }) {
 
   return (
     <>
-      <figure className="blog-img">
-        <Link href={`/blog-details/${blogSlug}`}>
-          <img src={data.image} alt={data.title || "news image"} />
+      <figure
+        className="blog-img"
+        style={{
+          margin: 0,
+          overflow: "hidden",
+          height: "220px",
+          width: "100%",
+        }}
+      >
+        <Link href={`/blog-details/${blogSlug}`} style={{ display: "block", height: "100%" }}>
+          <img
+            src={data.image}
+            alt={data.title || "news image"}
+            style={{
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+              display: "block",
+            }}
+          />
         </Link>
       </figure>
       <div className="detail">

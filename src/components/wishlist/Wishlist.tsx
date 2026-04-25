@@ -148,7 +148,8 @@ const Wishlist = ({
       // Uncomment the line below if you want to auto-remove from wishlist after adding to cart
       // dispatch(removeWishlist(data.id));
     } catch (error: any) {
-      showErrorToast(error || "Failed to add product to cart");
+      const errorMessage = error?.message || error?.detail || error || "Failed to add product to cart";
+      showErrorToast(errorMessage);
     } finally {
       setAddingToCart(null);
     }

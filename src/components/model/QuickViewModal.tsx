@@ -12,6 +12,7 @@ import SizeOptions from "../product-item/SizeOptions";
 import { addToCart } from "../../store/reducers/orderSlice";
 import SidebarCart from "./SidebarCart";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 interface Item {
   id: number;
@@ -41,6 +42,7 @@ interface Option {
 
 const QuickViewModal = ({ show, handleClose, data }) => {
   const dispatch = useDispatch<AppDispatch>();
+  const router = useRouter();
   const cart = useSelector((state: RootState) => state.order.cart);
   const cartItems = cart?.items || [];
   const [quantity, setQuantity] = useState(1);
@@ -155,6 +157,29 @@ const QuickViewModal = ({ show, handleClose, data }) => {
     } finally {
       setIsAddingToCart(false);
     }
+  };
+
+  const handleBuyNow = () => {
+    const productId = data?.id;
+    if (!productId) {
+      setErrorMessage("Unable to start buy now. Product not found.");
+      return;
+    }
+    if (!selectedVariantId) {
+      setErrorMessage("Please select a variant first.");
+      return;
+    }
+
+    const params = new URLSearchParams({
+      mode: "buy-now",
+      productId: String(productId),
+      qty: String(Math.max(1, quantity)),
+      variantId: String(selectedVariantId),
+      productName: String(data?.title || data?.name || ""),
+    });
+    
+    handleClose(); // Close modal before navigating
+    router.push(`/checkout?${params.toString()}`);
   };
 
   const handleClick = (id: number) => {
@@ -342,37 +367,87 @@ const QuickViewModal = ({ show, handleClose, data }) => {
                         </div>
                       </div>
                     </div>
-                    <div className="gi-quickview-qty">
-                      <div 
-                        className="qty-plus-minus gi-qty-rtl"
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          border: "2px solid #5caf90",
-                          borderRadius: "5px",
-                          overflow: "hidden",
-                          backgroundColor: "#fff",
-                          boxShadow: "0 2px 4px rgba(92, 175, 144, 0.2)",
-                          width: "146px",
-                          minWidth: "146px"
-                        }}
-                      >
-                        <QuantitySelector
-                          quantity={quantity}
-                          id={data.id}
-                          setQuantity={setQuantity}
-                        />
+                    <div
+                      className="gi-quickview-qty"
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "flex-start",
+                        gap: "10px",
+                        marginTop: "15px"
+                      }}
+                    >
+                      <div style={{ 
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "10px"
+                      }}>
+                        <label style={{ 
+                          fontSize: "15px",
+                          fontWeight: "500",
+                          color: "#333",
+                          marginBottom: "0"
+                        }}>
+                          Quantity:
+                        </label>
+                        <div 
+                          className="qty-plus-minus"
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            border: "1px solid #eee",
+                            borderRadius: "5px",
+                            overflow: "visible",
+                            width: "auto",
+                            minWidth: "120px",
+                            height: "auto"
+                          }}
+                        >
+                          <QuantitySelector
+                            quantity={quantity}
+                            id={data.id}
+                            setQuantity={setQuantity}
+                          />
+                        </div>
                       </div>
-                      <div className="gi-quickview-cart ">
+                      <div className="gi-quickview-cart" style={{ 
+                        display: "flex", 
+                        gap: "10px", 
+                        flexWrap: "wrap",
+                        width: "100%",
+                        marginTop: "10px"
+                      }}>
                         <button
                           onClick={handleCart}
                           className="gi-btn-1"
                           disabled={isAddingToCart}
-                          style={{ opacity: isAddingToCart ? 0.6 : 1 }}
+                          style={{ 
+                            opacity: isAddingToCart ? 0.6 : 1,
+                            minWidth: "140px",
+                            padding: "12px 15px",
+                            flex: "1",
+                            marginLeft: "0px"
+                          }}
                           title={"Add To Cart"}
                         >
                           <i className="fi-rr-shopping-basket"></i>&nbsp;
                           {isAddingToCart ? 'Adding...' : 'Add To Cart'}
+                        </button>
+                        <button
+                          onClick={handleBuyNow}
+                          className="gi-btn-2"
+                          disabled={isAddingToCart || !selectedVariantId}
+                          style={{ 
+                            opacity: (isAddingToCart || !selectedVariantId) ? 0.6 : 1,
+                            minWidth: "140px",
+                            padding: "12px 15px",
+                            cursor: (isAddingToCart || !selectedVariantId) ? "not-allowed" : "pointer",
+                            flex: "1"
+                          }}
+                          title={!selectedVariantId ? "Please select a variant first" : "Buy Now"}
+                        >
+                          <i className="fi-rr-shopping-cart-check"></i>&nbsp;
+                          Buy Now
                         </button>
                       </div>
                     </div>

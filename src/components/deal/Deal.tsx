@@ -32,9 +32,6 @@ const Deal = ({
   }, [dispatch]);
 
   useEffect(() => {
-  }, [featuredProducts]);
-
-  useEffect(() => {
     if (featuredProducts && featuredProducts.length === 1) {
       setMaxWidth("350px");
       setMaxHeight("500px");
@@ -127,13 +124,146 @@ const Deal = ({
     });
   }, [featuredProducts]);
 
-  if (error) return <div>Failed to load featured products</div>;
-  if (loading || !featuredProducts)
+  if (error) {
     return (
-      <div>
-        <Spinner />
-      </div>
+      <section className="gi-deal-section padding-tb-40 wow fadeInUp">
+        <div className="container">
+          <Row>
+            <Col lg={12}>
+              <div className="gi-products">
+                <div className="section-title">
+                  <div className="section-detail">
+                    <h2 className="gi-title">
+                      Day of the <span>deal</span>
+                    </h2>
+                  </div>
+                </div>
+                <div className="deal-message deal-message--error">
+                  <div className="deal-message__icon">
+                    <i className="fi-rr-info" aria-hidden />
+                  </div>
+                  <h3 className="deal-message__title">Oops, we hit a snag</h3>
+                  <p className="deal-message__text">
+                    Deals didn&apos;t load — maybe check your connection? Hit the button below and we&apos;ll try again.
+                  </p>
+                  <button
+                    type="button"
+                    className="deal-message__retry"
+                    onClick={() => dispatch(getFeaturedProducts({ force: true }))}
+                  >
+                    <i className="fi-rr-refresh" /> Give it another shot
+                  </button>
+                </div>
+              </div>
+            </Col>
+          </Row>
+        </div>
+        <style jsx>{`
+          .deal-message {
+            text-align: center;
+            padding: 2rem 1.25rem;
+            border-radius: 16px;
+            margin-top: 1rem;
+          }
+          .deal-message--error {
+            background: #f8f6f3;
+            border: 1px solid #e8e4de;
+          }
+          .deal-message__icon {
+            width: 52px;
+            height: 52px;
+            margin: 0 auto 0.75rem;
+            border-radius: 50%;
+            background: #eee9e2;
+            color: #8b7355;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+          }
+          .deal-message__title {
+            font-size: 1.15rem;
+            font-weight: 600;
+            color: #4a4a4a;
+            margin-bottom: 0.35rem;
+          }
+          .deal-message__text {
+            color: #6b6b6b;
+            margin-bottom: 1rem;
+            max-width: 380px;
+            margin-left: auto;
+            margin-right: auto;
+            font-size: 0.95rem;
+            line-height: 1.5;
+          }
+          .deal-message__retry {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.5rem 1rem;
+            background: #03492f;
+            color: #fff;
+            border: none;
+            border-radius: 999px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: background 0.2s ease, transform 0.15s ease;
+          }
+          .deal-message__retry:hover {
+            background: #023020;
+            transform: scale(1.02);
+          }
+        `}</style>
+      </section>
     );
+  }
+
+  if (loading || !featuredProducts) {
+    return (
+      <section className="gi-deal-section padding-tb-40 wow fadeInUp">
+        <div className="container">
+          <Row>
+            <Col lg={12}>
+              <div className="gi-products">
+                <div className="section-title">
+                  <div className="section-detail">
+                    <h2 className="gi-title">
+                      Day of the <span>deal</span>
+                    </h2>
+                    <p>Don&apos;t wait. The time will never be just right.</p>
+                  </div>
+                </div>
+                <div className="deal-message deal-message--loading">
+                  <Spinner />
+                  <p className="deal-message__text">Fetching today&apos;s deals...</p>
+                </div>
+              </div>
+            </Col>
+          </Row>
+        </div>
+        <style jsx>{`
+          .deal-message--loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
+            padding: 2.5rem 1.5rem;
+            margin-top: 1rem;
+            background: #f8f6f3;
+            border-radius: 16px;
+            border: 1px solid #e8e4de;
+          }
+          .deal-message--loading .deal-message__text {
+            color: #6b6b6b;
+            font-size: 0.95rem;
+            margin: 0;
+          }
+        `}</style>
+      </section>
+    );
+  }
 
   const getData = () => {
     return transformedProducts;
