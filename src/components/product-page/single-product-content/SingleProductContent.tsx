@@ -13,6 +13,7 @@ import { AppDispatch, RootState } from "@/store";
 import { addToCart } from "@/store/reducers/orderSlice";
 import { showSuccessToast, showErrorToast } from "../../toast-popup/Toastify";
 import { useRouter } from "next/navigation";
+import { createMetaEventId } from "@/components/pixel-setup/utils";
 
 const SingleProductContent = ({
     product,
@@ -182,6 +183,22 @@ const SingleProductContent = ({
                 showSuccessToast(`Updated! Now you have ${newQuantity} ${newQuantity > 1 ? 'items' : 'item'} in cart`);
             } else {
                 showSuccessToast(`Product added to cart successfully! (${quantity} ${quantity > 1 ? 'items' : 'item'})`);
+            }
+
+            const metaEventId = createMetaEventId();
+
+            if (window.fbq) {
+                window.fbq('track', 'AddToCart', {
+                    content_name: productData?.title,
+                    content_type: 'product',
+                    value: productData.price * quantity,
+                    currency: 'BDT',
+                    content_ids: [productData.id],
+                    content_category: productData.category,
+          
+                },{
+                    event_id: metaEventId
+                });
             }
         } catch (error: any) {
             showErrorToast(error || "Failed to add product to cart");

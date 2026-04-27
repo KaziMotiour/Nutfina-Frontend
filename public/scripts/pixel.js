@@ -1,4 +1,8 @@
-const PIXEL_ID = document.currentScript.getAttribute("data-pixel-id");
+const currentScript = document.currentScript;
+const PIXEL_ID =
+  currentScript && typeof currentScript.getAttribute === "function"
+    ? (currentScript.getAttribute("data-pixel-id") || "").trim()
+    : "";
 
 function initializeFacebookPixel(f, b, e, v, n, t, s) {
   if (f.fbq) return;
@@ -14,7 +18,11 @@ function initializeFacebookPixel(f, b, e, v, n, t, s) {
   t.async = !0;
   t.src = v;
   s = b.getElementsByTagName(e)[0];
-  s.parentNode.insertBefore(t, s);
+  if (s && s.parentNode) {
+    s.parentNode.insertBefore(t, s);
+  } else {
+    b.head.appendChild(t);
+  }
 }
 
 initializeFacebookPixel(
@@ -24,4 +32,6 @@ initializeFacebookPixel(
   "https://connect.facebook.net/en_US/fbevents.js",
 );
 
-window.fbq("init", PIXEL_ID);
+if (PIXEL_ID && typeof window.fbq === "function") {
+  window.fbq("init", PIXEL_ID);
+}

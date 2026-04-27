@@ -13,6 +13,7 @@ import { addToCart } from "../../store/reducers/orderSlice";
 import SidebarCart from "./SidebarCart";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { createMetaEventId } from "../pixel-setup/utils";
 
 interface Item {
   id: number;
@@ -139,11 +140,11 @@ const QuickViewModal = ({ show, handleClose, data }) => {
     // Get the current quantity before adding
     const currentQuantity = getCartItemQuantity(variantId);
     const wasInCart = isItemInCart(variantId);
-
+    const metaEventId = createMetaEventId();
     setIsAddingToCart(true);
     setErrorMessage(null); // Clear any previous error
     try {
-      await dispatch(addToCart({ variant_id: variantId, quantity: quantity })).unwrap();
+      await dispatch(addToCart({ variant_id: variantId, quantity: quantity, })).unwrap();
       
       // Show appropriate message based on whether item was already in cart
       if (wasInCart) {
@@ -152,6 +153,23 @@ const QuickViewModal = ({ show, handleClose, data }) => {
       } else {
         setSuccessMessage(`Product added to cart successfully! (${quantity} ${quantity > 1 ? 'items' : 'item'})`);
       }
+      const selectedOption = data.options.filter((item: any) => item.id === variantId)[0];
+
+      if (window.fbq) {
+        window.fbq('track', 'AddToCart', {
+          content_name: data.title,
+          content_type: 'product',
+          value: selectedOption.newPrice * quantity,
+          currency: 'BDT',
+          content_ids: [data.id],
+          content_category: data.category,
+
+        },{
+          event_id: metaEventId
+        }
+      );
+      }
+      
     } catch (error: any) {
       setErrorMessage(error?.message || error || "Failed to add product to cart");
     } finally {

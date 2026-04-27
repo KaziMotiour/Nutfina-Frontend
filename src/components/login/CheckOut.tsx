@@ -14,6 +14,7 @@ import { mergeCart, getCart, CartItem as BackendCartItem, checkout } from "@/sto
 import { showErrorToast, showSuccessToast } from "../toast-popup/Toastify";
 import DiscountCoupon from "../discount-coupon/DiscountCoupon";
 import { apiCall } from "@/utils/api";
+import { createMetaEventId } from "../pixel-setup/utils";
 
 interface Address {
   id: string;
@@ -146,11 +147,13 @@ const CheckOut = ({
     const buyNowQty = Math.max(1, Number(searchParams.get("qty") || 1));
     const buyNowVariantId = Number(searchParams.get("variantId") || 0);
     const buyNowProductName = (searchParams.get("productName") || "").trim();
+    const total = subTotal + vat - discountAmount;
+
 
     // Fetch cart only in cart checkout mode.
     useEffect(() => {
         if (checkoutMode === "cart" && !cartLoading && !cart) {
-        dispatch(getCart());
+          dispatch(getCart());
         }
     }, [dispatch, cartLoading, cart, checkoutMode]);
 
@@ -736,7 +739,6 @@ const CheckOut = ({
     }
   };
 
-  const total = subTotal + vat - discountAmount;
   // item Price end
 
   const { data, error } = useSWR("/api/deal", fetcher, { onSuccess, onError });
@@ -970,7 +972,57 @@ const CheckOut = ({
 
       if (checkout.fulfilled.match(result)) {
         showSuccessToast("Order placed successfully!");
-        
+
+        if(window.fbq) {
+
+          const pixelData: {
+            value: number
+            currency: string
+            content_ids: string[]
+            content_name: string
+            contents: { id: string; quantity: number; item_price: number }[]
+            content_type: 'product'
+          } = {
+            value: total,
+            currency: 'BDT',
+            content_ids: [],
+            content_name: '',
+            contents: [],
+            content_type: 'product',
+          }
+
+          if (checkoutMode === "buy-now" && buyNowItem) {
+            const id = String(buyNowItem.productId)
+            pixelData.content_ids = [id]
+            pixelData.content_name = buyNowItem.title
+            pixelData.contents = [
+              {
+                id,
+                quantity: buyNowItem.quantity,
+                item_price: buyNowItem.newPrice,
+              },
+            ]
+          } else if (checkoutMode === "cart" && cart) {
+            pixelData.content_ids = cartItems.map((item: any) => String(item.id))
+            pixelData.content_name = cartItems
+              .map((item: any) => item.title)
+              .join(', ')
+            pixelData.contents = cartItems.map((item: any) => ({
+              id: String(item.id),
+              quantity: item.quantity,
+              item_price: item.newPrice,
+            }))
+          }
+
+          const metaEventId = createMetaEventId();
+
+          window.fbq('track', 'Purchase', {
+           ...pixelData,
+          },{
+            event_id: metaEventId
+          }
+        );
+        }
         if (checkoutMode === "cart") {
           dispatch(clearCart());
         }

@@ -160,7 +160,7 @@ export const getCart = createAsyncThunk(
 
 export const addToCart = createAsyncThunk(
   "order/addToCart",
-  async (data: { variant_id: number; quantity: number }, { rejectWithValue }) => {
+  async (data: { variant_id: number; quantity: number; event_id?: string }, { rejectWithValue }) => {
     try {
       // Works for both authenticated and guest users (token-based guest cart)
       const response = await apiCall("/orders/cart/add/", {
@@ -319,9 +319,11 @@ export const checkout = createAsyncThunk(
         method: "POST",
         body: JSON.stringify(data),
       });
+
       if ((data.mode || "cart") !== "buy-now") {
         clearCartToken();
       }
+      
       return response;
     } catch (error: any) {
       return rejectWithValue(error.message || "Failed to checkout");
