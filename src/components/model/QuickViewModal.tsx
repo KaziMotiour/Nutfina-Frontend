@@ -14,6 +14,11 @@ import SidebarCart from "./SidebarCart";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createMetaEventId } from "../pixel-setup/utils";
+import { getFbpFbc, pixelEvent } from "@/lib/fpixel";
+import {
+  buildViewContentContentId,
+  sendViewContentCapi,
+} from "@/lib/viewContentCapi";
 
 interface Item {
   id: number;
@@ -71,7 +76,6 @@ const QuickViewModal = ({ show, handleClose, data }) => {
   };
 
   useEffect(() => {
-    console.log("data", data.options);
     if (data?.options?.length > 0) {
       const mappedOptions = data.options.map((option: any) => ({
         id: option.id,
@@ -118,13 +122,39 @@ const QuickViewModal = ({ show, handleClose, data }) => {
     }
   }, [errorMessage]);
 
-  // Clear messages when modal closes
+  // Clear messages when modal closes; ViewContent pixel + CAPI when modal opens with product data
   useEffect(() => {
     if (!show) {
       setSuccessMessage(null);
       setErrorMessage(null);
+      return;
     }
-  }, [show]);
+    if (!data?.title) {
+      return;
+    }
+
+    const eventId = createMetaEventId();
+    const { fbp, fbc } = getFbpFbc();
+    const initialWeight =
+      Array.isArray(data.options) && data.options.length > 0
+        ? data.options[0]?.weight
+        : data?.weight;
+    const pixelPayload = {
+      content_name: data.title,
+      content_category: `${data?.category ?? ""} > ${data.title}`,
+      content_type: "product" as const,
+      content_ids: [buildViewContentContentId(data.title, initialWeight)],
+      value: Number(data?.newPrice ?? 0),
+      currency: "BDT",
+    };
+    pixelEvent("ViewContent", pixelPayload, eventId);
+    sendViewContentCapi({
+      event_id: eventId,
+      fbp,
+      fbc,
+      ...pixelPayload,
+    });
+  }, [show, data?.id]);
 
 
 
@@ -141,10 +171,25 @@ const QuickViewModal = ({ show, handleClose, data }) => {
     const currentQuantity = getCartItemQuantity(variantId);
     const wasInCart = isItemInCart(variantId);
     const metaEventId = createMetaEventId();
+    const { fbp, fbc } = getFbpFbc();
     setIsAddingToCart(true);
     setErrorMessage(null); // Clear any previous error
     try {
-      await dispatch(addToCart({ variant_id: variantId, quantity: quantity, })).unwrap();
+      const selectedOption = (data.options || []).find((item: any) => item.id === variantId);
+      const metaContentId = selectedOption
+        ? buildViewContentContentId(data.title, selectedOption.weight)
+        : buildViewContentContentId(data.title, (data as any).weight);
+
+      await dispatch(
+        addToCart({
+          variant_id: variantId,
+          quantity,
+          event_id: metaEventId,
+          fbp,
+          fbc,
+          meta_content_id: metaContentId,
+        })
+      ).unwrap();
       
       // Show appropriate message based on whether item was already in cart
       if (wasInCart) {
@@ -153,22 +198,20 @@ const QuickViewModal = ({ show, handleClose, data }) => {
       } else {
         setSuccessMessage(`Product added to cart successfully! (${quantity} ${quantity > 1 ? 'items' : 'item'})`);
       }
-      const selectedOption = data.options.filter((item: any) => item.id === variantId)[0];
-
-      if (window.fbq) {
-        window.fbq('track', 'AddToCart', {
-          content_name: data.title,
-          content_type: 'product',
-          value: selectedOption.newPrice * quantity,
-          currency: 'BDT',
-          content_ids: [data.id],
-          content_category: data.category,
-
-        },{
-          event_id: metaEventId
-        }
-      );
-      }
+      const selectedOptionForPixel = (data.options || []).find((item: any) => item.id === variantId);
+      const trackingPrice = selectedOptionForPixel?.newPrice ?? newPrice;
+      
+      pixelEvent('AddToCart', {
+        content_name: data.title,
+        content_type: 'product',
+        value: parseFloat(trackingPrice) * quantity,
+        currency: 'BDT',
+        content_ids: [
+          buildViewContentContentId(data.title, selectedOptionForPixel?.weight),
+        ],
+        content_category: data.category,
+        num_items: quantity,
+      }, metaEventId);
       
     } catch (error: any) {
       setErrorMessage(error?.message || error || "Failed to add product to cart");
@@ -200,13 +243,33 @@ const QuickViewModal = ({ show, handleClose, data }) => {
     router.push(`/checkout?${params.toString()}`);
   };
 
-  const handleClick = (id: number) => {
+  const handleVariantChange = (id: number) => {
     setActiveIndex(id);
     setSelectedVariantId(id); // Update selected variant ID when weight changes
     const option = options.find((option: any) => option.id === id);
     
     setNewPrice(option?.newPrice || 0);
     setOldPrice(option?.oldPrice || 0);
+
+    const eventId = createMetaEventId();
+    const { fbp, fbc } = getFbpFbc();
+    const pixelPayload = {
+      content_name: data?.title,
+      content_category: `${data?.category ?? ""} > ${data?.title ?? ""}`,
+      content_type: "product" as const,
+      content_ids: [
+        buildViewContentContentId(data?.title ?? "", option?.value),
+      ],
+      value: Number(option?.newPrice ?? 0),
+      currency: "BDT",
+    };
+    pixelEvent("ViewContent", pixelPayload, eventId);
+    sendViewContentCapi({
+      event_id: eventId,
+      fbp,
+      fbc,
+      ...pixelPayload,
+    });
   };
 
   const openCart = () => setIsCartOpen(true);
@@ -356,7 +419,7 @@ const QuickViewModal = ({ show, handleClose, data }) => {
 
                     <div className="gi-quickview-price">
                       <span className="new-price">
-                        ${newPrice * quantity}
+                        ${newPrice}
                       </span>
                       <span className="old-price">${oldPrice}</span>
                     </div>
@@ -375,7 +438,7 @@ const QuickViewModal = ({ show, handleClose, data }) => {
                           />
                           <ul className="gi-opt-size">
                             {options.map((data: any, index) => (
-                              <li key={index} onClick={() => handleClick(data.id)} className={activeIndex === data.id ? "active" : ""}>
+                              <li key={index} onClick={() => handleVariantChange(data.id)} className={activeIndex === data.id ? "active" : ""}>
                                 <a className="gi-opt-sz" data-tooltip={data.tooltip}>
                                   {data.value}
                                 </a>

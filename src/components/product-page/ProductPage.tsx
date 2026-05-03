@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import SidebarArea from "../shop-sidebar/sidebar-area/SidebarArea";
 import { Swiper, SwiperSlide } from "swiper/react";
 import StarRating from "../stars/StarRating";
@@ -19,6 +19,7 @@ import {
   setSelectedWeight,
 } from "@/store/reducers/filterReducer";
 import { getProduct } from "@/store/reducers/shopSlice";
+import { createMetaEventId } from "../pixel-setup/utils";
 
 const ProductPage = ({
   productId,
@@ -38,6 +39,7 @@ const ProductPage = ({
     selectedColor,
     selectedTags,
   } = useSelector((state: RootState) => state.filter);
+  const eventId = useMemo(() => createMetaEventId(), []);
 
   // Fetch product details from Redux store
   const { currentProduct, loading: productLoading, error: productError } = useSelector(
@@ -47,9 +49,16 @@ const ProductPage = ({
   // Fetch the product when productId is available
   useEffect(() => {
     if (productId) {
-      dispatch(getProduct(productId));
+      dispatch(
+        getProduct({
+          slug: productId,
+          event_id: eventId,
+          event_source_url:
+            typeof window !== "undefined" ? window.location.href : undefined,
+        }),
+      );
     }
-  }, [productId, dispatch]);
+  }, [productId, eventId, dispatch]);
 
   const { data, error } = useSWR("/api/moreitem", fetcher, {
     onSuccess,
@@ -110,7 +119,7 @@ const ProductPage = ({
       >
         {/* <!-- Single product content Start --> */}
         <div className="single-pro-block">
-          <SingleProductContent product={currentProduct} />
+          <SingleProductContent product={currentProduct} event_id={eventId}/>
         </div>
         {/* <!--Single product content End -->
                     <!-- Add More and get discount content Start --> */}

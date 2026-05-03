@@ -10,8 +10,12 @@ import { Fade } from "react-awesome-reveal";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "../../store";
 import { getFeaturedProducts, Product, ProductVariant } from "../../store/reducers/shopSlice";
+import { shouldForceRefreshOnHomeDocumentLoad } from "@/lib/homeDocumentRefresh";
 import Spinner from "../button/Spinner";
 import { useEffect } from "react";
+
+/** One-shot per full browser document so SPA returns to home reuse Redux / persisted cache. */
+let dealFeaturedBootstrapHandledThisDocument = false;
 
 const Deal = ({
   onSuccess = () => {},
@@ -28,7 +32,15 @@ const Deal = ({
   const { featuredProducts, loading, error } = useSelector((state: RootState) => state.shop);
 
   useEffect(() => {
-    dispatch(getFeaturedProducts());
+    if (dealFeaturedBootstrapHandledThisDocument) {
+      return;
+    }
+    dealFeaturedBootstrapHandledThisDocument = true;
+    if (shouldForceRefreshOnHomeDocumentLoad()) {
+      void dispatch(getFeaturedProducts({ force: true }));
+    } else {
+      void dispatch(getFeaturedProducts());
+    }
   }, [dispatch]);
 
   useEffect(() => {
@@ -87,12 +99,12 @@ const Deal = ({
               title: variant.name,
               newPrice: variant.final_price,
               oldPrice: variant.price,
-              weight: variant.weight_grams ? `${variant.weight_grams}g` : "N/A",
+              weight: variant.weight_grams ? `${variant.weight_grams}gm` : "N/A",
               sku: variant.sku,
               image: getImageUrl(variant?.images?.[0] || variant?.product_images?.[0]),
               imageTwo: getImageUrl(variant?.images?.[1] || variant?.product_images?.[1]),
           }
-      })
+      }) || []
       
         return {
             id: product.id,
@@ -111,7 +123,7 @@ const Deal = ({
             rating: 5, // Default rating, can be added to backend later
             weight: firstVariant?.weight_grams 
               ? (firstVariant.weight_grams < 1000 
-                ? `${firstVariant.weight_grams}g` 
+                ? `${firstVariant.weight_grams}gm` 
                 : `${(firstVariant.weight_grams / 1000).toFixed(1)}kg`)
             : "N/A",
             sku: firstVariant?.sku || product.id,

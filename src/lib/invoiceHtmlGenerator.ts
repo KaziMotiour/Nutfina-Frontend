@@ -53,7 +53,7 @@ export const generateInvoiceHTML = (order: Order): string => {
     if (!weightGrams) return "N/A";
     const weight = typeof weightGrams === 'string' ? parseFloat(weightGrams) : weightGrams;
     return weight < 1000 
-      ? `${weight}g` 
+      ? `${weight}gm` 
       : `${(weight / 1000).toFixed(1)}kg`;
   };
 

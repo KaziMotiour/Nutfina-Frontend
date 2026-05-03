@@ -531,7 +531,7 @@ export default function AdminOrders() {
                                       {order.items.map((item: any, itemIndex: number) => {
                                         const productName = item.product_name || item.product_detail?.name || item.variant_detail?.product?.name || "Product";
                                         const variantName = item.variant_detail?.name || item.variant_detail?.weight_grams 
-                                          ? `${item.variant_detail.weight_grams}g`
+                                          ? `${item.variant_detail.weight_grams}gm`
                                           : "Standard";
                                         // Get product image from various possible sources
                                         const productImageRaw = item.product_detail?.images?.[0]?.image 

@@ -203,7 +203,7 @@ const FullWidth = ({
           oldPrice: parseFloat(variant.price) || 0,
           weight: variant.weight_grams 
             ? (variant.weight_grams < 1000 
-              ? `${variant.weight_grams}g` 
+              ? `${variant.weight_grams}gm` 
               : `${(variant.weight_grams / 1000).toFixed(1)}kg`)
             : "N/A",
           sku: variant.sku,
@@ -225,7 +225,7 @@ const FullWidth = ({
         imageTwo: getImageUrl(secondImage),
         waight: firstVariant?.weight_grams 
           ? (firstVariant.weight_grams < 1000 
-            ? `${firstVariant.weight_grams}g` 
+            ? `${firstVariant.weight_grams}gm` 
             : `${(firstVariant.weight_grams / 1000).toFixed(1)}kg`)
           : "",
         date: product.created || "",

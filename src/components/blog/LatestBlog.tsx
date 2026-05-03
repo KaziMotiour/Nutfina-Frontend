@@ -6,6 +6,7 @@ import { Fade } from "react-awesome-reveal";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState, AppDispatch } from "@/store";
 import { getBlogs } from "@/store/reducers/blogSlice";
+import { shouldForceRefreshOnHomeDocumentLoad } from "@/lib/homeDocumentRefresh";
 import Spinner from "../button/Spinner";
 import Link from "next/link";
 import { API_BASE_URL } from "@/utils/api";
@@ -57,6 +58,9 @@ const constructImageUrl = (imagePath: string | null | undefined): string => {
   return `${backendBaseUrl}/${rawPath}`;
 };
 
+/** One-shot per full browser document so SPA returns to home reuse Redux / persisted cache. */
+let latestBlogBootstrapHandledThisDocument = false;
+
 const LatestBlog = ({
   onSuccess = () => { },
   hasPaginate = false,
@@ -70,10 +74,20 @@ const LatestBlog = ({
     homeLatestBlogsError,
   } = useSelector((state: RootState) => state.blog);
 
-  // Fetch once per session (cached in Redux + persist). Skipped when `homeLatestBlogsFetched`.
+  // Refetch when document opens/reloads on home; SPA back to home uses Redux + persist only.
   // `onSuccess`/`onError` omitted from deps (unstable default prop functions).
   useEffect(() => {
-    dispatch(getBlogs({ limit: 10, ordering: "-published_at" })).then((action) => {
+    if (latestBlogBootstrapHandledThisDocument) {
+      return;
+    }
+    latestBlogBootstrapHandledThisDocument = true;
+
+    const base = { limit: 10, ordering: "-published_at" as const };
+    const params = shouldForceRefreshOnHomeDocumentLoad()
+      ? { ...base, force: true as const }
+      : base;
+
+    void dispatch(getBlogs(params)).then((action) => {
       if (getBlogs.fulfilled.match(action)) {
         onSuccess();
       } else if (

@@ -176,12 +176,12 @@ const RelatedProduct = ({
         rating: 5, // Default rating, can be added to backend later
         weight: firstVariant?.weight_grams 
           ? (firstVariant.weight_grams < 1000 
-              ? `${firstVariant.weight_grams}g` 
+              ? `${firstVariant.weight_grams}gm` 
               : `${(firstVariant.weight_grams / 1000).toFixed(1)}kg`)
           : "N/A",
         waight: firstVariant?.weight_grams 
           ? (firstVariant.weight_grams < 1000 
-              ? `${firstVariant.weight_grams}g` 
+              ? `${firstVariant.weight_grams}gm` 
               : `${(firstVariant.weight_grams / 1000).toFixed(1)}kg`)
           : "N/A",
         sku: firstVariant?.sku || product.id,

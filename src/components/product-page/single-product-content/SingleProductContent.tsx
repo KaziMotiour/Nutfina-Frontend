@@ -12,11 +12,19 @@ import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "@/store";
 import { addToCart } from "@/store/reducers/orderSlice";
 import { showSuccessToast, showErrorToast } from "../../toast-popup/Toastify";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { createMetaEventId } from "@/components/pixel-setup/utils";
+import { getFbpFbc, pixelEvent } from "@/lib/fpixel";
+import { buildViewContentContentId, sendViewContentCapi } from "@/lib/viewContentCapi";
+
+/** Survives Strict Mode remount + Redux re-renders with new object refs (same product id). */
+let lastViewContentSig = "";
+let lastViewContentTs = 0;
+const VIEW_CONTENT_DEDUP_MS = 4000;
 
 const SingleProductContent = ({
     product,
+    event_id: eventIdProp,
     onSuccess = () => {},
     hasPaginate = false,
     onError = () => {},
@@ -27,6 +35,7 @@ const SingleProductContent = ({
     const [isAddingToCart, setIsAddingToCart] = useState(false);
     const dispatch = useDispatch<AppDispatch>();
     const router = useRouter();
+    const pathname = usePathname();
     const cart = useSelector((state: RootState) => state.order.cart);
     const cartItems = cart?.items || [];
     const initialRef: any = null;
@@ -54,6 +63,45 @@ const SingleProductContent = ({
     useEffect(() => {
         setIsSliderInitialized(true);
     }, [isSliderInitialized]);
+
+    useEffect(() => {
+        if (product?.id == null) return;
+
+        const idKey = String(product.id);
+        const sig = `${pathname ?? ""}::${idKey}`;
+        const now = Date.now();
+        if (sig === lastViewContentSig && now - lastViewContentTs < VIEW_CONTENT_DEDUP_MS) {
+            return;
+        }
+        lastViewContentSig = sig;
+        lastViewContentTs = now;
+
+        const eventId =
+            typeof eventIdProp === "string" && eventIdProp.trim() !== ""
+                ? eventIdProp
+                : createMetaEventId();
+        console.log('weights', product?.variants?.[0]?.weight_grams);
+        
+        pixelEvent(
+            'ViewContent',
+            {
+                content_name: product.name,
+                content_category: `${product.category_name ?? ""} > ${product.name}`,
+                content_ids: [
+                    buildViewContentContentId(
+                        product.name,
+                        product?.variants?.[0]?.weight_grams,
+                    ),
+                ],
+                content_type: "product",
+                value: Number(
+                    product?.variants?.[0]?.final_price ?? product?.base_price ?? 0,
+                ),
+                currency: "BDT",
+            },
+            eventId
+        );
+    }, [product, eventIdProp, pathname]);
 
     const handleSlider1Click = (index: any) => {
         if (slider2.current) {
@@ -173,10 +221,26 @@ const SingleProductContent = ({
         const currentQuantity = getCartItemQuantity(variantId);
         const wasInCart = isItemInCart(variantId);
 
+        const metaEventId = createMetaEventId();
+        const { fbp, fbc } = getFbpFbc();
+        const metaContentId = buildViewContentContentId(
+            productData.title,
+            selectedVariant.weight_grams,
+        );
+
         setIsAddingToCart(true);
         try {
-            await dispatch(addToCart({ variant_id: variantId, quantity })).unwrap();
-            
+            await dispatch(
+                addToCart({
+                    variant_id: variantId,
+                    quantity,
+                    event_id: metaEventId,
+                    fbp,
+                    fbc,
+                    meta_content_id: metaContentId,
+                })
+            ).unwrap();
+
             // Show appropriate message based on whether item was already in cart
             if (wasInCart) {
                 const newQuantity = currentQuantity + quantity;
@@ -185,21 +249,15 @@ const SingleProductContent = ({
                 showSuccessToast(`Product added to cart successfully! (${quantity} ${quantity > 1 ? 'items' : 'item'})`);
             }
 
-            const metaEventId = createMetaEventId();
-
-            if (window.fbq) {
-                window.fbq('track', 'AddToCart', {
-                    content_name: productData?.title,
-                    content_type: 'product',
-                    value: productData.price * quantity,
-                    currency: 'BDT',
-                    content_ids: [productData.id],
-                    content_category: productData.category,
-          
-                },{
-                    event_id: metaEventId
-                });
-            }
+            pixelEvent('AddToCart', {
+                content_name: productData?.title,
+                content_type: 'product',
+                value: Number.parseFloat(String(selectedVariant.final_price ?? 0)) * quantity,
+                currency: 'BDT',
+                content_ids: [metaContentId],
+                content_category: productData.category,
+                num_items: quantity,
+            }, metaEventId);
         } catch (error: any) {
             showErrorToast(error || "Failed to add product to cart");
         } finally {
@@ -209,7 +267,34 @@ const SingleProductContent = ({
 
     const handleVariantSelect = (variant: any) => {
         setSelectedVariant(variant);
-    };
+        const eventId = createMetaEventId();
+        const { fbp, fbc } = getFbpFbc();
+        const value = Number(
+            variant?.final_price ?? productData?.price ?? 0
+        );
+        const pixelPayload = {
+            content_name: productData?.title,
+            content_category: `${productData?.category ?? ""} > ${productData?.title ?? ""}`,
+            content_ids: [
+                buildViewContentContentId(
+                    productData?.title ?? "",
+                    variant?.weight_grams,
+                ),
+            ],
+            content_type: "product" as const,
+            value,
+            currency: "BDT",
+        };
+        console.log('pixelPayload', pixelPayload);
+        pixelEvent('ViewContent', pixelPayload, eventId);
+        sendViewContentCapi({
+            event_id: eventId,
+            fbp,
+            fbc,
+            ...pixelPayload,
+        });
+    }
+
 
     const handleBuyNow = () => {
         const resolvedProductId = product?.id;
@@ -338,7 +423,7 @@ const SingleProductContent = ({
                                 >
                                     <span>
                                     {variant.weight_grams 
-                                        ? `${(variant.weight_grams)}g`
+                                        ? `${(variant.weight_grams)}gm`
                                         : variant.name || variant.sku}
                                     </span>
                                 </li>

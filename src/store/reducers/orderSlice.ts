@@ -158,9 +158,20 @@ export const getCart = createAsyncThunk(
   }
 );
 
+export type AddToCartPayload = {
+  variant_id: number;
+  quantity: number;
+  /** Same id as browser fbq `event_id` for CAPI deduplication. */
+  event_id?: string;
+  fbp?: string;
+  fbc?: string;
+  /** First content_id string; should match Pixel `content_ids[0]`. */
+  meta_content_id?: string;
+};
+
 export const addToCart = createAsyncThunk(
   "order/addToCart",
-  async (data: { variant_id: number; quantity: number; event_id?: string }, { rejectWithValue }) => {
+  async (data: AddToCartPayload, { rejectWithValue }) => {
     try {
       // Works for both authenticated and guest users (token-based guest cart)
       const response = await apiCall("/orders/cart/add/", {
@@ -178,9 +189,12 @@ export const mergeCart = createAsyncThunk(
   "order/mergeCart",
   async (_, { rejectWithValue }) => {
     try {
-      // For token-based cart flow this keeps current behavior by refreshing cart state.
-      const response = await apiCall("/orders/cart/", {
-        method: "GET",
+      // POST /orders/cart/merge/ attaches the guest cart (X-Cart-Token) to the
+      // now-authenticated user, merging any overlapping items.
+      // The response contains the unified cart and a new X-Cart-Token that the
+      // apiCall helper persists to localStorage automatically.
+      const response = await apiCall("/orders/cart/merge/", {
+        method: "POST",
       });
       return response;
     } catch (error: any) {
@@ -313,6 +327,9 @@ export const checkout = createAsyncThunk(
     payment_method?: string;
     shipping_fee?: number;
     notes?: string;
+    event_id?: string;
+    fbp?: string;
+    fbc?: string;
   }, { rejectWithValue }) => {
     try {
       const response = await apiCall("/orders/checkout/", {
@@ -488,11 +505,13 @@ const orderSlice = createSlice({
     },
   },
   extraReducers: (builder) => {
-    // Clear cart state on logout so guest cart can be fetched fresh again
+    // On logout: clear Redux cart state AND remove the cart token from localStorage
+    // so the next session starts with a fresh anonymous cart.
     builder.addCase(logout, (state) => {
       state.cart = null;
       state.loading = false;
       state.error = null;
+      clearCartToken();
     });
 
     // Cart
@@ -522,8 +541,17 @@ const orderSlice = createSlice({
         state.loading = false;
         state.error = action.payload as string;
       })
+      .addCase(mergeCart.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
       .addCase(mergeCart.fulfilled, (state, action) => {
+        state.loading = false;
         state.cart = action.payload;
+      })
+      .addCase(mergeCart.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
       })
       .addCase(updateCartItem.fulfilled, (state) => {
         // Explicitly ignore backend response - keep frontend-calculated values

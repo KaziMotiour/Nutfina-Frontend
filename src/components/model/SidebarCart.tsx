@@ -114,7 +114,7 @@ const SidebarCart = ({ closeCart, isCartOpen }: any) => {
 
       // Get weight from variant
       const weight = variant.weight_grams 
-        ? `${parseFloat(variant.weight_grams.toString())}g` 
+        ? `${parseFloat(variant.weight_grams.toString())}gm` 
         : "";
 
       // Get image URL - check multiple possible fields and construct full URL

@@ -94,12 +94,12 @@ const RoastedNuts = () => {
                     title: variant.name,
                     newPrice: variant.final_price,
                     oldPrice: variant.price,
-                    weight: variant.weight_grams ? `${variant.weight_grams}g` : "N/A",
+                    weight: variant.weight_grams ? `${variant.weight_grams}gm` : "N/A",
                     sku: variant.sku,
                     image: getImageUrl(variant?.images?.[0] || variant?.product_images?.[0]),
                     imageTwo: getImageUrl(variant?.images?.[1] || variant?.product_images?.[1]),
                 };
-            });
+            }) || [];
 
             return {
                 id: product.id, // Use variant ID (guaranteed to exist since we filtered)
@@ -119,7 +119,7 @@ const RoastedNuts = () => {
                 rating: 5, // Default rating, can be added to backend later
                 weight: firstVariant.weight_grams 
                     ? (firstVariant.weight_grams < 1000 
-                        ? `${firstVariant.weight_grams}g` 
+                        ? `${firstVariant.weight_grams}gm` 
                         : `${(firstVariant.weight_grams / 1000).toFixed(1)}kg`)
                     : "N/A",
                 sku: firstVariant.sku,
@@ -129,7 +129,7 @@ const RoastedNuts = () => {
                 brand: categoryName,
                 waight: firstVariant.weight_grams 
                     ? (firstVariant.weight_grams < 1000 
-                        ? `${firstVariant.weight_grams}g` 
+                        ? `${firstVariant.weight_grams}gm` 
                         : `${(firstVariant.weight_grams / 1000).toFixed(1)}kg`)
                     : "N/A",
                 options: options,

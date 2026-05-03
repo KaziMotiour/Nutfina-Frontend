@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
 import { apiCall, getAuthToken, API_BASE_URL, refreshAccessToken } from "@/utils/api";
+import { getFbpFbc } from "@/lib/fpixel";
 
 // Types
 export interface Category {
@@ -92,6 +93,8 @@ export interface ShopState {
   productVariants: ProductVariant[];
   inventory: Inventory[];
   currentProduct: Product | null;
+  /** Slug currently being fetched by ``getProduct``; avoids duplicate requests / double CAPI. */
+  getProductPendingSlug: string | null;
   currentCategory: Category | null;
   loading: boolean;
   error: string | null;
@@ -111,6 +114,7 @@ const initialState: ShopState = {
   productVariants: [],
   inventory: [],
   currentProduct: null,
+  getProductPendingSlug: null,
   currentCategory: null,
   loading: false,
   error: null,
@@ -221,15 +225,51 @@ export const getProducts = createAsyncThunk(
   }
 );
 
+/** Pass a slug/id string, or `{ slug, event_id?, event_source_url? }` for Meta CAPI on GET. */
+export type GetProductArg =
+  | string
+  | { slug: string; event_id?: string; event_source_url?: string };
+
+const MAX_EVENT_SOURCE_URL_QUERY_LEN = 4096;
+
 export const getProduct = createAsyncThunk(
   "shop/getProduct",
-  async (slug: string, { rejectWithValue }) => {
+  async (arg: GetProductArg, { rejectWithValue }) => {
+    const slug = typeof arg === "string" ? arg : arg.slug;
+    const event_id = typeof arg === "object" && arg?.event_id ? arg.event_id : undefined;
+    const event_source_url_raw =
+      typeof arg === "object" && arg?.event_source_url ? arg.event_source_url : undefined;
     try {
-      const response = await apiCall(`/shop/products/${slug}/`);
+      const params = new URLSearchParams();
+      if (event_id) {
+        params.set("event_id", event_id);
+        const { fbp, fbc } = getFbpFbc();
+        if (fbp) params.set("fbp", fbp);
+        if (fbc) params.set("fbc", fbc);
+        if (event_source_url_raw) {
+          params.set(
+            "event_source_url",
+            event_source_url_raw.slice(0, MAX_EVENT_SOURCE_URL_QUERY_LEN),
+          );
+        }
+      }
+      const qs = params.toString();
+      const url = qs ? `/shop/products/${slug}/?${qs}` : `/shop/products/${slug}/`;
+      const response = await apiCall(url);
       return response;
     } catch (error: any) {
       return rejectWithValue(error.message || "Failed to get product");
     }
+  },
+  {
+    condition: (arg, { getState }) => {
+      const slug = typeof arg === "string" ? arg : arg.slug;
+      const pending = (getState() as { shop: ShopState }).shop.getProductPendingSlug;
+      if (pending !== null && pending === slug) {
+        return false;
+      }
+      return true;
+    },
   }
 );
 
@@ -562,14 +602,24 @@ const shopSlice = createSlice({
         state.error = action.payload as string;
       })
       .addCase(getProduct.pending, (state, action) => {
+        const requested =
+          typeof action.meta.arg === "string" ? action.meta.arg : action.meta.arg.slug;
+        state.getProductPendingSlug = requested;
         // Clear current product when fetching a (possibly different) product to avoid showing stale data
-        const requested = action.meta.arg;
-        if (!state.currentProduct || (String(state.currentProduct.id) !== String(requested) && state.currentProduct.slug !== requested)) {
+        if (
+          !state.currentProduct ||
+          (String(state.currentProduct.id) !== String(requested) &&
+            state.currentProduct.slug !== requested)
+        ) {
           state.currentProduct = null;
         }
       })
       .addCase(getProduct.fulfilled, (state, action) => {
+        state.getProductPendingSlug = null;
         state.currentProduct = action.payload;
+      })
+      .addCase(getProduct.rejected, (state) => {
+        state.getProductPendingSlug = null;
       })
       .addCase(createProduct.fulfilled, (state, action) => {
         state.products.push(action.payload);

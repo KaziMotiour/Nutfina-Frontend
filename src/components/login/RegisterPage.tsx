@@ -8,6 +8,7 @@ import { Form } from "react-bootstrap";
 import * as formik from "formik";
 import * as yup from "yup";
 import { registerUser, loginUser, getCurrentUser, clearError } from "@/store/reducers/userSlice";
+import { mergeCart } from "@/store/reducers/orderSlice";
 import { showErrorToast, showSuccessToast } from "../toast-popup/Toastify";
 
 const RegisterPage = ({ onSuccess = () => {}, onError = () => {} }) => {
@@ -119,6 +120,8 @@ const RegisterPage = ({ onSuccess = () => {}, onError = () => {} }) => {
         if (loginUser.fulfilled.match(loginResult)) {
           // Fetch user data after successful login
           await dispatch(getCurrentUser());
+          // Attach any guest cart items to the new user account
+          await dispatch(mergeCart());
 
           // // If address fields are provided, create an address
           // if (values.address && values.city && values.country) {

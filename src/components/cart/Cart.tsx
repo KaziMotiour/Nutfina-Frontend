@@ -49,7 +49,7 @@ const getImageUrlFromObject = (img: any): string => {
 const formatWeight = (weightGrams: number | null | undefined): string => {
   if (!weightGrams) return "N/A";
   return weightGrams < 1000 
-    ? `${weightGrams}g` 
+    ? `${weightGrams}gm` 
     : `${(weightGrams / 1000).toFixed(1)}kg`;
 };
 
@@ -220,7 +220,7 @@ const Cart = ({
           sku: variant.sku,
           image: getImageUrlFromObject(variant?.images?.[0] || variant?.product_images?.[0]),
           imageTwo: getImageUrlFromObject(variant?.images?.[1] || variant?.product_images?.[1]),
-        }));
+        })) || [];
 
         return {
           id: product.id,

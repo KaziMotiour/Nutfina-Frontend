@@ -15,6 +15,7 @@ import { showErrorToast, showSuccessToast } from "../toast-popup/Toastify";
 import DiscountCoupon from "../discount-coupon/DiscountCoupon";
 import { apiCall } from "@/utils/api";
 import { createMetaEventId } from "../pixel-setup/utils";
+import { getFbpFbc, pixelEvent } from "@/lib/fpixel";
 
 interface Address {
   id: string;
@@ -142,6 +143,7 @@ const CheckOut = ({
     const [buyNowItem, setBuyNowItem] = useState<BuyNowSummaryItem | null>(null);
     const checkboxRef = useRef<HTMLInputElement>(null);
     const userExplicitlyChoseNew = useRef(false);
+    const initiateCheckoutTrackedRef = useRef(false);
     const checkoutMode = searchParams.get("mode") === "buy-now" ? "buy-now" : "cart";
     const buyNowProductId = Number(searchParams.get("productId") || 0);
     const buyNowQty = Math.max(1, Number(searchParams.get("qty") || 1));
@@ -180,7 +182,6 @@ const CheckOut = ({
                 `/shop/variants/?product=${buyNowProductId}&is_active=true`,
                 { method: "GET" }
               );
-              console.log(response);
               const list = Array.isArray(response) ? response : response?.results || [];
               variant = list[0] || null;
           }
@@ -188,7 +189,6 @@ const CheckOut = ({
           if (!variant?.id || !variant?.is_active) {
               throw new Error("Selected product variant is unavailable.");
           }
-          console.log(variant);
           const variantImages = variant.images || [];
           const productImages = variant.product_images || [];
           const firstImage = variantImages[0] || productImages[0] || {};
@@ -248,6 +248,7 @@ const CheckOut = ({
 
             return {
                 id: item.id,
+                productId: product.id != null ? Number(product.id) : null,
                 variant_id: item.variant,
                 slug: product.slug,
                 title: title,
@@ -255,9 +256,84 @@ const CheckOut = ({
                 quantity: item.quantity,
                 image: imageUrl,
                 line_total: parseFloat(item.line_total),
+                weight: variant.weight_grams ? variant.weight_grams : "N/A",
             };
         });
     }, [cart, checkoutMode, buyNowItem]);
+
+    // Meta Pixel: InitiateCheckout once when checkout has line items (cart loaded or buy-now resolved).
+    useEffect(() => {
+      if (initiateCheckoutTrackedRef.current) {
+        return;
+      }
+
+      const cartReady =
+        checkoutMode === "cart" && !cartLoading && cart != null && cartItems.length > 0;
+      const buyNowReady =
+        checkoutMode === "buy-now" && !buyNowLoading && buyNowItem != null;
+
+      if (!cartReady && !buyNowReady) {
+        return;
+      }
+
+      initiateCheckoutTrackedRef.current = true;
+
+      const pixelData: {
+        value: number;
+        currency: string;
+        content_ids: string[];
+        content_name: string;
+        contents: { id: string; quantity: number; item_price: number }[];
+        content_type: "product";
+        num_items: number;
+      } = {
+        value: 0,
+        currency: "BDT",
+        content_ids: [],
+        content_name: "",
+        contents: [],
+        content_type: "product",
+        num_items: 0,
+      };
+
+      if (checkoutMode === "buy-now" && buyNowItem) {
+        const id = String(buyNowItem.productId);
+        pixelData.value = buyNowItem.newPrice * buyNowItem.quantity;
+        pixelData.content_ids = [buyNowItem.title+'_'+ buyNowItem.weight_grams + 'gm'];
+        pixelData.content_name = buyNowItem.title;
+        pixelData.num_items = buyNowItem.quantity;
+        pixelData.contents = [
+          {
+            id,
+            quantity: buyNowItem.quantity,
+            item_price: buyNowItem.newPrice,
+          },
+        ];
+      } else if (checkoutMode === "cart" && cartItems.length > 0) {
+        console.log('cartItems', cartItems);
+        pixelData.value = parseFloat(cart?.subtotal || "0");
+        pixelData.content_ids = cartItems.map((item: any) => String(item.title+'_'+ item.weight + 'gm'));
+        pixelData.content_name = cartItems.map((item: any) => item.title).join(", ");
+        pixelData.num_items = cartItems.reduce((acc: number, item: any) => acc + item.quantity, 0);
+        pixelData.contents = cartItems.map((item: any) => ({
+          id: String(item.id),
+          quantity: item.quantity,
+          item_price: item.newPrice,
+        }));
+      }
+      
+      pixelEvent('InitiateCheckout', {
+        ...pixelData,
+      }, createMetaEventId());
+    }, [
+      buyNowItem,
+      buyNowLoading,
+      cart,
+      cartItems,
+      cartLoading,
+      checkoutMode,
+      total,
+    ]);
 
     const [formData, setFormData]: any = useState({
       name: "",
@@ -826,7 +902,9 @@ const CheckOut = ({
         payment_method?: string;
         shipping_fee?: number;
         notes?: string;
-        
+        event_id?: string;
+        fbp?: string;
+        fbc?: string;
       } = {};
 
       // Determine address strategy
@@ -967,6 +1045,12 @@ const CheckOut = ({
         };
       }
 
+      const purchaseMetaEventId = createMetaEventId();
+      const { fbp, fbc } = getFbpFbc();
+      checkoutPayload.event_id = purchaseMetaEventId;
+      if (fbp) checkoutPayload.fbp = fbp;
+      if (fbc) checkoutPayload.fbc = fbc;
+
       // Call backend checkout API
       const result = await dispatch(checkout(checkoutPayload));
 
@@ -974,7 +1058,6 @@ const CheckOut = ({
         showSuccessToast("Order placed successfully!");
 
         if(window.fbq) {
-
           const pixelData: {
             value: number
             currency: string
@@ -1003,24 +1086,22 @@ const CheckOut = ({
               },
             ]
           } else if (checkoutMode === "cart" && cart) {
-            pixelData.content_ids = cartItems.map((item: any) => String(item.id))
+            const cartContentId = (item: { productId: number | null; id: number }) =>
+              item.productId != null ? String(item.productId) : String(item.id);
+            pixelData.content_ids = cartItems.map((item: any) => cartContentId(item));
             pixelData.content_name = cartItems
               .map((item: any) => item.title)
-              .join(', ')
+              .join(', ');
             pixelData.contents = cartItems.map((item: any) => ({
-              id: String(item.id),
+              id: cartContentId(item),
               quantity: item.quantity,
               item_price: item.newPrice,
-            }))
+            }));
           }
 
-          const metaEventId = createMetaEventId();
-
-          window.fbq('track', 'Purchase', {
+          pixelEvent('Purchase', {
            ...pixelData,
-          },{
-            event_id: metaEventId
-          }
+          }, purchaseMetaEventId
         );
         }
         if (checkoutMode === "cart") {
@@ -1849,7 +1930,7 @@ const CheckOut = ({
                           >
                             <div style={{ flex: 1 }}>
                               <h6 style={{ margin: 0, fontSize: "14px", fontWeight: "500" }}>
-                                {item.title} {item.weight_grams}g ({item.quantity}x)
+                                {item.title} {item.weight_grams}gm ({item.quantity}x)
                               </h6>
                             </div>
                             <div style={{ textAlign: "right" }}>

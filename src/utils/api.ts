@@ -44,6 +44,12 @@ const withCartTokenHeader = (url: string, headers: HeadersInit): Headers => {
 };
 
 const persistCartTokenFromResponse = (response: Response, payload?: any): void => {
+  // Backend signals that the stored token is stale (cart ordered/abandoned)
+  if (response.headers.get("X-Clear-Cart-Token")) {
+    clearCartToken();
+    return;
+  }
+
   const headerToken = response.headers.get(CART_TOKEN_HEADER);
   if (headerToken) {
     setCartToken(headerToken);
@@ -188,45 +194,40 @@ export const apiCall = async (
     // Check if access token is expired before making request
     const accessToken = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
     if (accessToken && isTokenExpired(accessToken)) {
-      // Access token is expired, try to refresh it
       try {
         const newAccessToken = await refreshAccessToken();
         if (newAccessToken) {
-          // Use new token for the request
           const headers: HeadersInit = {
             "Content-Type": "application/json",
             Authorization: `Bearer ${newAccessToken}`,
             ...options.headers,
           };
           const requestHeaders = withCartTokenHeader(url, headers);
-          
           const response = await fetch(`${API_BASE_URL}${url}`, {
             ...options,
             headers: requestHeaders,
-            credentials: "include", // CRITICAL: Must be "include" for cross-origin cookies
+            credentials: "include",
           });
 
           if (!response.ok) {
             const error = await response.json().catch(() => ({ detail: "An error occurred" }));
             if (response.status === 400 && isCartTokenError(error.detail || error.message)) {
               clearCartToken();
-              if (cartRetry && url.startsWith("/orders/cart/") && (options.method || "GET").toUpperCase() === "GET") {
+              // Retry any cart mutation with a fresh (tokenless) request so a new cart is created
+              if (cartRetry && url.startsWith("/orders/cart/")) {
                 return apiCall(url, options, retry, false);
               }
             }
             throw new Error(error.detail || error.message || "Request failed");
           }
 
-          if (response.status === 204) {
-            return response;
-          }
+          if (response.status === 204) return response;
 
           const payload = await response.json();
           persistCartTokenFromResponse(response, payload);
           return payload;
         }
       } catch (refreshError: any) {
-        // Refresh failed - tokens are expired, user needs to login again
         throw new Error("Session expired. Please login again.");
       }
     }
@@ -239,73 +240,65 @@ export const apiCall = async (
     };
     const requestHeaders = withCartTokenHeader(url, headers);
 
-    // Ensure credentials is always "include" for cookie support, even if options override it
     const response = await fetch(`${API_BASE_URL}${url}`, {
         ...options,
         headers: requestHeaders,
         credentials: "include", // CRITICAL: Must be "include" for cross-origin cookies to work
     });
 
-    // If 401 Unauthorized and we haven't retried yet, try to refresh token
+    // 401 → try to refresh the auth token and replay the request
     if (response.status === 401 && retry) {        
         try {
             const newAccessToken = await refreshAccessToken();
-            
             if (newAccessToken) {
-                // Retry the original request with new token
                 const newHeaders: HeadersInit = {
                     "Content-Type": "application/json",
                     Authorization: `Bearer ${newAccessToken}`,
                     ...options.headers,
                 };
                 const retryHeaders = withCartTokenHeader(url, newHeaders);
-                
                 const retryResponse = await fetch(`${API_BASE_URL}${url}`, {
                     ...options,
                     headers: retryHeaders,
-                    credentials: "include", // CRITICAL: Must be "include" for cross-origin cookies
+                    credentials: "include",
                 });
 
                 if (!retryResponse.ok) {
                     const error = await retryResponse.json().catch(() => ({ detail: "An error occurred" }));
                     if (retryResponse.status === 400 && isCartTokenError(error.detail || error.message)) {
                         clearCartToken();
-                        if (cartRetry && url.startsWith("/orders/cart/") && (options.method || "GET").toUpperCase() === "GET") {
+                        if (cartRetry && url.startsWith("/orders/cart/")) {
                             return apiCall(url, options, false, false);
                         }
                     }
                     throw new Error(error.detail || error.message || "Request failed");
                 }
 
-                if (retryResponse.status === 204) {
-                    return retryResponse;
-                }
+                if (retryResponse.status === 204) return retryResponse;
 
                 const retryPayload = await retryResponse.json();
                 persistCartTokenFromResponse(retryResponse, retryPayload);
                 return retryPayload;
             }
         } catch (refreshError: any) {
-            // If refresh fails, tokens are expired - user needs to login again
-            // handleTokenExpiration is already called in refreshAccessToken
             throw new Error("Session expired. Please login again.");
         }
     }
 
     if (!response.ok) {
         const error = await response.json().catch(() => ({ detail: "An error occurred" }));
+        // Stale cart token → clear it and retry the operation without a token.
+        // A new cart will be created automatically on the backend side.
         if (response.status === 400 && isCartTokenError(error.detail || error.message)) {
             clearCartToken();
-            if (cartRetry && url.startsWith("/orders/cart/") && (options.method || "GET").toUpperCase() === "GET") {
+            if (cartRetry && url.startsWith("/orders/cart/")) {
                 return apiCall(url, options, retry, false);
             }
         }
         throw new Error(error.detail || error.message || "Request failed");
     }
 
-    if (response.status === 204) {
-        return response;
-    }
+    if (response.status === 204) return response;
 
     const payload = await response.json();
     persistCartTokenFromResponse(response, payload);

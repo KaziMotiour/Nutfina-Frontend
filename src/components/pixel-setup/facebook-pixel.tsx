@@ -42,6 +42,8 @@
 
 'use client'
 
+import { FB_PIXEL_ID, firePageViewPixel, newPixelEventId } from '@/lib/fpixel'
+import { sendPageViewCapi } from '@/lib/pageViewCapi'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { useEffect } from 'react'
 
@@ -50,9 +52,10 @@ export default function FacebookPixelTracker() {
   const searchParams = useSearchParams()
 
   useEffect(() => {
-    if (window.fbq) {
-      window.fbq('track', 'PageView')
-    }
+    if (!FB_PIXEL_ID) return
+    const eventId = newPixelEventId()
+    firePageViewPixel(eventId)
+    sendPageViewCapi({ event_id: eventId })
   }, [pathname, searchParams])
 
   return null
